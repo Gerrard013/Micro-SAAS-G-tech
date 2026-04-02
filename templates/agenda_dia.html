@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>{{ empresa.nome }} • Agenda do Dia</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(145deg, #f6f9fc 0%, #eef2f7 100%);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #1a2c3e;
+      line-height: 1.4;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1350px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      border-radius: 2rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.02);
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      border: 1px solid #e9edf2;
+    }
+
+    .logo-area {
+      flex-shrink: 0;
+    }
+
+    .logo {
+      height: 70px;
+      width: auto;
+      max-width: 180px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
+    }
+
+    .header-info {
+      flex: 1;
+    }
+
+    .header-info h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      color: #0f2b3d;
+      letter-spacing: -0.01em;
+    }
+
+    .header-info p {
+      color: #4a627a;
+      font-size: 0.95rem;
+    }
+
+    .badge {
+      background: #eef3fc;
+      color: #1e6f9f;
+      padding: 0.4rem 1rem;
+      border-radius: 60px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: inline-block;
+      margin-top: 0.5rem;
+      border: 1px solid #dce5ef;
+    }
+
+    .filters {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1.2rem 1.8rem;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      min-width: 160px;
+    }
+
+    .filter-group label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #5b6e8c;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      background: #f9fbfd;
+      border: 1px solid #cfdde8;
+      border-radius: 14px;
+      padding: 0.65rem 1rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: #1a2c3e;
+      transition: all 0.2s;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+      outline: none;
+      border-color: #2c7cb6;
+      box-shadow: 0 0 0 3px rgba(44,124,182,0.1);
+    }
+
+    .btn {
+      background: #1f6392;
+      border: none;
+      border-radius: 14px;
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: white;
+      cursor: pointer;
+      transition: 0.15s;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .btn-outline {
+      background: white;
+      border: 1px solid #cbdae6;
+      color: #2c5f8a;
+      box-shadow: none;
+    }
+
+    .btn-outline:hover {
+      background: #f5f9ff;
+      border-color: #8ea9c2;
+    }
+
+    .btn:hover {
+      background: #0f4d73;
+      transform: translateY(-1px);
+    }
+
+    .btn-save {
+      background: #17623f;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.78rem;
+      border-radius: 12px;
+      min-width: 88px;
+    }
+
+    .btn-save:hover {
+      background: #0f4b2f;
+    }
+
+    .btn-save:disabled {
+      background: #9eb7a9;
+      cursor: wait;
+      transform: none;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1.2rem 1rem;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+      transition: 0.1s;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: #6c819e;
+      letter-spacing: 0.3px;
+    }
+
+    .stat-number {
+      font-size: 2.3rem;
+      font-weight: 700;
+      color: #154a6e;
+      line-height: 1.2;
+      margin-top: 0.2rem;
+    }
+
+    .table-container {
+      background: white;
+      border-radius: 1.8rem;
+      border: 1px solid #e2e8f0;
+      overflow-x: auto;
+      box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.05);
+    }
+
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: #fafcfd;
+      border-bottom: 1px solid #e9edf2;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .table-header strong {
+      font-weight: 600;
+      color: #1f4766;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th, td {
+      padding: 1rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #eef2f8;
+      font-size: 0.9rem;
+      vertical-align: middle;
+    }
+
+    th {
+      background-color: #f8fafc;
+      font-weight: 600;
+      color: #2f5b7c;
+      font-size: 0.85rem;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.7rem;
+      border-radius: 30px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: capitalize;
+      background: #eef2f9;
+      color: #3a6b8f;
+      margin-bottom: 0.45rem;
+    }
+
+    .status-marcado { background: #fff3e0; color: #b86800; }
+    .status-confirmado { background: #e0f0fa; color: #1b6b99; }
+    .status-concluido { background: #e0f3e8; color: #1e7845; }
+    .status-cancelado { background: #ffe8e6; color: #bc3f2e; }
+    .status-faltou { background: #f4e3e3; color: #aa2e1e; }
+
+    .status-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      min-width: 170px;
+    }
+
+    .status-select {
+      background: #f9fbfd;
+      border: 1px solid #cfdde8;
+      border-radius: 12px;
+      padding: 0.55rem 0.8rem;
+      font-size: 0.82rem;
+      color: #1a2c3e;
+      font-family: inherit;
+    }
+
+    .status-feedback {
+      font-size: 0.75rem;
+      color: #5d7791;
+      min-height: 1em;
+    }
+
+    .empty-row td {
+      text-align: center;
+      padding: 2rem;
+      color: #7f95b0;
+    }
+
+    .note {
+      margin-top: 1.5rem;
+      font-size: 0.8rem;
+      color: #66809c;
+      text-align: center;
+      background: #f1f5f9;
+      padding: 0.75rem;
+      border-radius: 2rem;
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .muted-small {
+      font-size: 0.75rem;
+      color: #6c819e;
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 1rem; }
+      .header { flex-direction: column; text-align: center; padding: 1.5rem; }
+      .logo { height: 55px; }
+      .filters { flex-direction: column; align-items: stretch; }
+      .filter-group { width: 100%; }
+      .btn { justify-content: center; }
+      .stat-number { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo-area">
+      {% set logo_url = empresa.logo_url if empresa.logo_url else url_for('static', filename='uploads/empresas/gtech.jpeg') %}
+      <img src="{{ logo_url }}" alt="Logo {{ empresa.nome }}" class="logo" onerror="this.onerror=null; this.src='{{ url_for('static', filename='uploads/empresas/gtech.jpeg') }}';">
+    </div>
+    <div class="header-info">
+      <h1>Agenda do Dia</h1>
+      <p><strong>{{ empresa.nome }}</strong> • Gestão rápida de horários</p>
+      <div class="badge">🔐 acesso interno | token exclusivo da empresa</div>
+    </div>
+  </div>
+
+  <form class="filters" method="get">
+    <input type="hidden" name="token" value="{{ token }}">
+    <div class="filter-group">
+      <label>📅 Data</label>
+      <input type="date" name="data" value="{{ data_ref }}">
+    </div>
+    <div class="filter-group">
+      <label>✂️ Profissional</label>
+      <select name="barbeiro_id">
+        <option value="">Todos os barbeiros</option>
+        {% for barbeiro in barbeiros %}
+          <option value="{{ barbeiro.id }}" {% if barbeiro.id == barbeiro_selecionado %}selected{% endif %}>
+            {{ barbeiro.nome }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn">Atualizar</button>
+    <a href="{{ url_for('exportar_csv_interno', empresa_slug=empresa.slug, token=token, data=data_ref, barbeiro_id=barbeiro_selecionado) }}" class="btn btn-outline">📎 Exportar CSV</a>
+  </form>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-number">{{ resumo.total }}</div></div>
+    <div class="stat-card"><div class="stat-label">📌 Marcados</div><div class="stat-number">{{ resumo.marcado }}</div></div>
+    <div class="stat-card"><div class="stat-label">✅ Confirmados</div><div class="stat-number">{{ resumo.confirmado }}</div></div>
+    <div class="stat-card"><div class="stat-label">✔️ Concluídos</div><div class="stat-number">{{ resumo.concluido }}</div></div>
+    <div class="stat-card"><div class="stat-label">⚠️ Cancelados/Faltas</div><div class="stat-number">{{ resumo.cancelado + resumo.faltou }}</div></div>
+  </div>
+
+  <div class="table-container">
+    <div class="table-header">
+      <strong>📋 Agendamentos · {{ data_ref }}</strong>
+      <span>{{ empresa.slug }}</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Horário</th>
+          <th>Cliente</th>
+          <th>Telefone</th>
+          <th>Serviço</th>
+          <th>Barbeiro</th>
+          <th>Status</th>
+          <th>Observação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if agendamentos %}
+          {% for item in agendamentos %}
+          <tr id="row-{{ item.id }}">
+            <td style="white-space: nowrap;">{{ item.hora_inicio }} – {{ item.hora_fim }}</td>
+            <td>
+              <strong>{{ item.cliente_nome }}</strong>
+              {% if item.cliente_email %}
+                <br><span class="muted-small">{{ item.cliente_email }}</span>
+              {% endif %}
+            </td>
+            <td>{{ item.cliente_telefone }}</td>
+            <td>{{ item.servico_nome }}</td>
+            <td>{{ item.barbeiro_nome }}</td>
+            <td>
+              <div class="status-box">
+                <span id="badge-{{ item.id }}" class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span>
+
+                <select class="status-select" id="select-{{ item.id }}">
+                  <option value="marcado" {% if item.status|lower == 'marcado' %}selected{% endif %}>Marcado</option>
+                  <option value="confirmado" {% if item.status|lower == 'confirmado' %}selected{% endif %}>Confirmado</option>
+                  <option value="concluido" {% if item.status|lower == 'concluido' %}selected{% endif %}>Concluído</option>
+                  <option value="cancelado" {% if item.status|lower == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                  <option value="faltou" {% if item.status|lower == 'faltou' %}selected{% endif %}>Faltou</option>
+                </select>
+
+                <button class="btn btn-save" type="button" onclick="atualizarStatus('{{ item.id }}')">Salvar</button>
+                <div class="status-feedback" id="feedback-{{ item.id }}"></div>
+              </div>
+            </td>
+            <td>{{ item.observacao or '—' }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr class="empty-row">
+            <td colspan="7">Nenhum agendamento encontrado para esta data e filtro.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    🧠 Painel interno exclusivo • altere status sem precisar mexer no banco
+  </div>
+</div>
+
+<script>
+  async function atualizarStatus(agendamentoId) {
+    const select = document.getElementById(`select-${agendamentoId}`);
+    const badge = document.getElementById(`badge-${agendamentoId}`);
+    const feedback = document.getElementById(`feedback-${agendamentoId}`);
+    const button = document.querySelector(`#row-${agendamentoId} .btn-save`);
+
+    const novoStatus = select.value;
+    const token = "{{ token }}";
+
+    button.disabled = true;
+    feedback.textContent = "Salvando...";
+
+    try {
+      const resposta = await fetch(`/api/agendamentos/${agendamentoId}/status?token=${encodeURIComponent(token)}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status: novoStatus })
+      });
+
+      const data = await resposta.json();
+
+      if (!resposta.ok) {
+        feedback.textContent = data.message || data.error || "Erro ao atualizar.";
+        button.disabled = false;
+        return;
+      }
+
+      badge.textContent = novoStatus;
+      badge.className = `status-badge status-${novoStatus}`;
+      feedback.textContent = "Status atualizado com sucesso.";
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 700);
+
+    } catch (erro) {
+      feedback.textContent = "Falha de conexão ao salvar status.";
+    } finally {
+      button.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

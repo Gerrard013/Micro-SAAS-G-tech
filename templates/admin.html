@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Barbeiros</title>
+  <style>
+    body { font-family: Arial; background: #111; color: #eee; padding: 20px; }
+    h1 { color: #ff3b3b; }
+    form { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 30px; max-width: 400px; }
+    label { display: block; margin: 10px 0 5px; }
+    input { width: 100%; padding: 8px; background: #333; border: 1px solid #555; color: #fff; border-radius: 5px; }
+    button { background: #ff1f1f; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+    img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; margin-right: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+    .flash { background: #2b6cff; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1>👤 Gerenciar Barbeiros</h1>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash">{{ messages[0] }}</div>
+    {% endif %}
+  {% endwith %}
+
+  <form action="/admin/barbeiro/novo" method="post" enctype="multipart/form-data">
+    <h2>Adicionar barbeiro</h2>
+    <label>Nome</label>
+    <input type="text" name="nome" required>
+    <label>Foto</label>
+    <input type="file" name="imagem" accept="image/*" required>
+    <button type="submit">Salvar</button>
+  </form>
+
+  <h2>Barbeiros cadastrados</h2>
+  <table>
+    <tr>
+      <th>Foto</th>
+      <th>Nome</th>
+    </tr>
+    {% for b in barbeiros %}
+    <tr>
+      <td><img src="{{ url_for('uploads', nome=b.imagem) }}" onerror="this.src='https://via.placeholder.com/50?text=erro'"></td>
+      <td>{{ b.nome }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <p><a href="/" style="color: #ff3b3b;">← Voltar ao agendamento</a></p>
+</body>
+</html>
