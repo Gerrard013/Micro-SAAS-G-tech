@@ -928,7 +928,7 @@ def confirmar_agendamento(empresa_slug):
 
 
 # ==========================================================
-# ROTAS INTERNAS (DONO)
+# ROTAS INTERNAS (DONO) - CORRIGIDA
 # ==========================================================
 @app.route("/agenda/<empresa_slug>")
 def agenda_dia(empresa_slug):
@@ -958,99 +958,9 @@ def agenda_dia(empresa_slug):
     finally:
         conn.close()
 
-    # Rota interna usa render_template_string (simples, sem dependência externa)
-    html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Agenda - {{ empresa.nome }}</title>
-        <style>
-            body { font-family: Arial; margin: 20px; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .status-select { padding: 4px; }
-            .btn-csv { margin-bottom: 20px; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; display: inline-block; }
-            .resumo { margin-bottom: 20px; }
-        </style>
-    </head>
-    <body>
-        <h2>Agenda - {{ empresa.nome }}</h2>
-        <div class="resumo">
-            <strong>Resumo:</strong> Total: {{ resumo.total }} |
-            Marcado: {{ resumo.marcado }} |
-            Confirmado: {{ resumo.confirmado }} |
-            Concluido: {{ resumo.concluido }} |
-            Cancelado: {{ resumo.cancelado }}
-        </div>
-        <form method="get" action="">
-            <label>Data: <input type="date" name="data" value="{{ data_ref }}"></label>
-            <label>Barbeiro:
-                <select name="barbeiro_id">
-                    <option value="">Todos</option>
-                    {% for b in barbeiros %}
-                    <option value="{{ b.id }}" {% if barbeiro_selecionado == b.id %}selected{% endif %}>{{ b.nome }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <input type="hidden" name="token" value="{{ token }}">
-            <button type="submit">Filtrar</button>
-        </form>
-        <a class="btn-csv" href="{{ url_for('exportar_csv_interno', empresa_slug=empresa.slug, token=token, data=data_ref, barbeiro_id=barbeiro_selecionado) }}">Exportar CSV</a>
-        <table>
-            <thead>
-                <tr><th>Horario</th><th>Cliente</th><th>Telefone</th><th>Servico</th><th>Barbeiro</th><th>Preco</th><th>Status</th><th>Acao</th></tr>
-            </thead>
-            <tbody>
-                {% for a in agendamentos %}
-                <tr>
-                    <td>{{ a.hora_inicio }} - {{ a.hora_fim }}</td>
-                    <td>{{ a.cliente_nome }}</td>
-                    <td>{{ a.cliente_telefone }}</td>
-                    <td>{{ a.servico_nome }}</td>
-                    <td>{{ a.barbeiro_nome }}</td>
-                    <td>R$ {{ a.preco }}</td>
-                    <td>
-                        <select class="status-select" data-id="{{ a.id }}">
-                            <option value="marcado" {% if a.status == 'marcado' %}selected{% endif %}>Marcado</option>
-                            <option value="confirmado" {% if a.status == 'confirmado' %}selected{% endif %}>Confirmado</option>
-                            <option value="concluido" {% if a.status == 'concluido' %}selected{% endif %}>Concluido</option>
-                            <option value="cancelado" {% if a.status == 'cancelado' %}selected{% endif %}>Cancelado</option>
-                        </select>
-                    </td>
-                    <td><button onclick="alterarStatus('{{ a.id }}', this)">Atualizar</button></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <script>
-            function alterarStatus(id, btn) {
-                const select = btn.parentElement.previousElementSibling.querySelector('.status-select');
-                const novoStatus = select.value;
-                fetch(`/api/agendamentos/${id}/status?token={{ token }}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: novoStatus })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Status atualizado para ' + novoStatus);
-                        location.reload();
-                    } else {
-                        alert('Erro ao atualizar');
-                    }
-                })
-                .catch(err => alert('Erro'));
-            }
-        </script>
-    </body>
-    </html>
-    """
-    from flask import render_template_string
-    return render_template_string(
-        html,
+    # Agora usa o template externo "agenda_dia.html"
+    return render_template(
+        "agenda_dia.html",
         empresa=empresa,
         token=token,
         data_ref=data_ref,
