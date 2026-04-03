@@ -689,7 +689,19 @@ def health():
 
 @app.route("/agendar/<empresa_slug>")
 def pagina_agendamento(empresa_slug):
-    return "TESTE APP PY NOVO 123"
+    empresa = get_empresa_por_slug(empresa_slug)
+    if not empresa:
+        abort(404, description="Empresa não encontrada.")
+
+    barbeiros = listar_barbeiros(empresa["id"])
+    servicos = listar_servicos(empresa["id"])
+
+    return render_template(
+        "agenda_publica.html",
+        empresa=dict(empresa),
+        barbeiros=barbeiros,
+        servicos=servicos
+    )
 
 
 @app.route("/api/agendamentos/disponibilidade")
@@ -946,6 +958,7 @@ def agenda_dia(empresa_slug):
     finally:
         conn.close()
 
+    # Rota interna usa render_template_string (simples, sem dependência externa)
     html = """
     <!DOCTYPE html>
     <html>
