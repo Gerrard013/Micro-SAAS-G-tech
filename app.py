@@ -18,9 +18,13 @@ from flask import (
 app = Flask(__name__)
 
 # ==========================================================
-# CONFIGURACOES
+# CONFIGURACOES - CORRIGIDO PARA RAILWAY
 # ==========================================================
-DB_PATH = os.getenv("DB_PATH", "/var/data/database.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR, "database.db")
+
 APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", secrets.token_hex(32))
 DEFAULT_EMPRESA_SLUG = os.getenv("DEFAULT_EMPRESA_SLUG", "barbearia")
 MAX_AGENDAMENTO_POR_MINUTO = int(os.getenv("MAX_AGENDAMENTO_POR_MINUTO", "10"))
@@ -140,23 +144,6 @@ def mascarar_telefone(telefone: str) -> str:
     if len(digits) < 4:
         return "***"
     return "*" * max(0, len(digits) - 4) + digits[-4:]
-
-
-# ==========================================================
-# SEGURANCA (HEADERS)
-# ==========================================================
-@app.after_request
-def add_security_headers(response):
-    response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; "
-        "img-src 'self' https: data:; "
-        "font-src 'self' https: data:;"
-    )
-    return response
 
 
 # ==========================================================
@@ -414,6 +401,29 @@ def init_db():
         print(f"Empresa padrao criada: slug={DEFAULT_EMPRESA_SLUG}, token={token_padrao}")
 
     conn.close()
+
+
+# ==========================================================
+# INICIALIZACAO DO BANCO (GUNICORN)
+# ==========================================================
+init_db()
+
+
+# ==========================================================
+# SEGURANCA (HEADERS)
+# ==========================================================
+@app.after_request
+def add_security_headers(response):
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; "
+        "img-src 'self' https: data:; "
+        "font-src 'self' https: data:;"
+    )
+    return response
 
 
 # ==========================================================
@@ -1370,7 +1380,6 @@ def internal_error(err):
 # MAIN
 # ==========================================================
 if __name__ == "__main__":
-    init_db()
     debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     app.run(
         debug=debug_mode,
