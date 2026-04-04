@@ -5,493 +5,736 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{{ empresa.nome }} • Agenda do Dia</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    :root {
+      --bg: #0b1220;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --line: #e2e8f0;
+      --line-strong: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #0f766e;
+      --primary-strong: #0b5f59;
+      --primary-soft: #ecfdf5;
+      --warning-bg: #fff7ed;
+      --warning-text: #c2410c;
+      --info-bg: #eff6ff;
+      --info-text: #1d4ed8;
+      --success-bg: #ecfdf5;
+      --success-text: #15803d;
+      --danger-bg: #fef2f2;
+      --danger-text: #b91c1c;
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
     }
+
+    * { box-sizing: border-box; }
+
+    html { -webkit-text-size-adjust: 100%; }
 
     body {
-      background: linear-gradient(145deg, #f6f9fc 0%, #eef2f7 100%);
-      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #1a2c3e;
-      line-height: 1.4;
-      padding: 2rem 1rem;
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(15,118,110,0.15), transparent 28%),
+        radial-gradient(circle at top right, rgba(59,130,246,0.10), transparent 24%),
+        linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+      min-height: 100vh;
+      padding: 28px 16px 36px;
     }
 
-    .container {
-      max-width: 1350px;
+    .page {
+      max-width: 1220px;
       margin: 0 auto;
     }
 
-    .header {
-      background: white;
-      border-radius: 2rem;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.02);
-      padding: 1.5rem 2rem;
-      margin-bottom: 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-      border: 1px solid #e9edf2;
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #111827 50%, #0f766e 140%);
+      color: #fff;
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(2, 6, 23, 0.18);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 18px;
     }
 
-    .logo-area {
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 60%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .logo-wrap {
+      width: 74px;
+      height: 74px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.14);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
+      backdrop-filter: blur(6px);
+      overflow: hidden;
     }
 
     .logo {
-      height: 70px;
-      width: auto;
-      max-width: 180px;
-      object-fit: contain;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
-    .header-info {
-      flex: 1;
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2.6vw, 2.35rem);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
     }
 
-    .header-info h1 {
-      font-size: 1.8rem;
+    .hero p {
+      margin: 7px 0 0;
+      color: rgba(255,255,255,0.82);
+      font-size: 0.98rem;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+      font-size: 0.86rem;
       font-weight: 600;
-      margin-bottom: 0.25rem;
-      color: #0f2b3d;
-      letter-spacing: -0.01em;
+      backdrop-filter: blur(6px);
     }
 
-    .header-info p {
-      color: #4a627a;
-      font-size: 0.95rem;
-    }
-
-    .badge {
-      background: #eef3fc;
-      color: #1e6f9f;
-      padding: 0.4rem 1rem;
-      border-radius: 60px;
-      font-size: 0.8rem;
-      font-weight: 500;
-      display: inline-block;
-      margin-top: 0.5rem;
-      border: 1px solid #dce5ef;
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
     }
 
     .filters {
-      background: white;
-      border-radius: 1.5rem;
-      padding: 1.2rem 1.8rem;
-      margin-bottom: 2rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      align-items: flex-end;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      padding: 18px;
+      margin-bottom: 18px;
     }
 
-    .filter-group {
+    .filters-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr auto auto;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
-      min-width: 160px;
+      gap: 7px;
     }
 
-    .filter-group label {
-      font-size: 0.75rem;
-      font-weight: 600;
+    .field label {
+      font-size: 0.77rem;
+      font-weight: 700;
+      color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #5b6e8c;
+      letter-spacing: 0.08em;
     }
 
-    .filter-group input,
-    .filter-group select {
-      background: #f9fbfd;
-      border: 1px solid #cfdde8;
+    .field input,
+    .field select {
+      width: 100%;
+      height: 48px;
+      border: 1px solid var(--line-strong);
       border-radius: 14px;
-      padding: 0.65rem 1rem;
-      font-size: 0.9rem;
-      font-family: inherit;
-      color: #1a2c3e;
-      transition: all 0.2s;
+      background: #fff;
+      padding: 0 14px;
+      font: inherit;
+      color: var(--text);
+      transition: 0.2s ease;
     }
 
-    .filter-group input:focus,
-    .filter-group select:focus {
+    .field input:focus,
+    .field select:focus {
       outline: none;
-      border-color: #2c7cb6;
-      box-shadow: 0 0 0 3px rgba(44,124,182,0.1);
+      border-color: rgba(15,118,110,0.7);
+      box-shadow: 0 0 0 4px rgba(15,118,110,0.10);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .btn {
-      background: #1f6392;
-      border: none;
+      height: 48px;
       border-radius: 14px;
-      padding: 0.65rem 1.5rem;
-      font-weight: 600;
-      font-size: 0.85rem;
-      color: white;
-      cursor: pointer;
-      transition: 0.15s;
-      font-family: inherit;
+      border: none;
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 700;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.4rem;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      gap: 8px;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+      white-space: nowrap;
     }
 
-    .btn-outline {
-      background: white;
-      border: 1px solid #cbdae6;
-      color: #2c5f8a;
-      box-shadow: none;
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
     }
 
-    .btn-outline:hover {
-      background: #f5f9ff;
-      border-color: #8ea9c2;
+    .btn-primary:hover { background: var(--primary-strong); }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line-strong);
     }
 
-    .btn:hover {
-      background: #0f4d73;
-      transform: translateY(-1px);
-    }
+    .btn-secondary:hover { background: #f8fafc; }
 
-    .btn-save {
-      background: #17623f;
-      padding: 0.55rem 0.85rem;
-      font-size: 0.78rem;
-      border-radius: 12px;
-      min-width: 88px;
-    }
-
-    .btn-save:hover {
-      background: #0f4b2f;
-    }
-
-    .btn-save:disabled {
-      background: #9eb7a9;
-      cursor: wait;
-      transform: none;
-    }
-
-    .stats-grid {
+    .stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
     }
 
     .stat-card {
-      background: white;
-      border-radius: 1.5rem;
-      padding: 1.2rem 1rem;
-      text-align: center;
-      border: 1px solid #e2e8f0;
-      transition: 0.1s;
+      padding: 18px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), #38bdf8);
+      opacity: 0.9;
     }
 
     .stat-label {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      font-weight: 600;
-      color: #6c819e;
-      letter-spacing: 0.3px;
-    }
-
-    .stat-number {
-      font-size: 2.3rem;
+      font-size: 0.78rem;
       font-weight: 700;
-      color: #154a6e;
-      line-height: 1.2;
-      margin-top: 0.2rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
     }
 
-    .table-container {
-      background: white;
-      border-radius: 1.8rem;
-      border: 1px solid #e2e8f0;
-      overflow-x: auto;
-      box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.05);
+    .stat-value {
+      font-size: clamp(1.55rem, 2.4vw, 2.2rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.03em;
     }
 
-    .table-header {
+    .stat-sub {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .agenda-wrap {
+      overflow: hidden;
+    }
+
+    .agenda-head {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem 1.5rem;
-      background: #fafcfd;
-      border-bottom: 1px solid #e9edf2;
+      gap: 12px;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
     }
 
-    .table-header strong {
-      font-weight: 600;
-      color: #1f4766;
+    .agenda-title {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .agenda-title strong {
+      font-size: 1rem;
+    }
+
+    .agenda-title span,
+    .agenda-head small {
+      color: var(--muted);
+    }
+
+    .table-scroll {
+      overflow-x: auto;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 980px;
+      min-width: 820px;
     }
 
-    th, td {
-      padding: 1rem 1rem;
+    thead th {
       text-align: left;
-      border-bottom: 1px solid #eef2f8;
-      font-size: 0.9rem;
-      vertical-align: middle;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      background: var(--panel-soft);
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
     }
 
-    th {
-      background-color: #f8fafc;
-      font-weight: 600;
-      color: #2f5b7c;
-      font-size: 0.85rem;
+    tbody td {
+      padding: 16px;
+      border-bottom: 1px solid #edf2f7;
+      vertical-align: top;
+      font-size: 0.93rem;
     }
 
-    tr:last-child td {
-      border-bottom: none;
+    tbody tr:hover { background: #fbfdff; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .time {
+      font-weight: 800;
+      color: var(--text);
+      white-space: nowrap;
     }
 
-    .status-badge {
-      display: inline-block;
-      padding: 0.2rem 0.7rem;
-      border-radius: 30px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: capitalize;
-      background: #eef2f9;
-      color: #3a6b8f;
-      margin-bottom: 0.45rem;
+    .client-name,
+    .service-name,
+    .barber-name {
+      font-weight: 700;
+      color: var(--text);
     }
 
-    .status-marcado { background: #fff3e0; color: #b86800; }
-    .status-confirmado { background: #e0f0fa; color: #1b6b99; }
-    .status-concluido { background: #e0f3e8; color: #1e7845; }
-    .status-cancelado { background: #ffe8e6; color: #bc3f2e; }
-    .status-faltou { background: #f4e3e3; color: #aa2e1e; }
-
-    .status-box {
-      display: flex;
-      flex-direction: column;
-      gap: 0.45rem;
-      min-width: 170px;
-    }
-
-    .status-select {
-      background: #f9fbfd;
-      border: 1px solid #cfdde8;
-      border-radius: 12px;
-      padding: 0.55rem 0.8rem;
+    .subtext {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
       font-size: 0.82rem;
-      color: #1a2c3e;
-      font-family: inherit;
+      word-break: break-word;
     }
 
-    .status-feedback {
-      font-size: 0.75rem;
-      color: #5d7791;
-      min-height: 1em;
+    .phone-link,
+    .whats-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 700;
     }
 
-    .empty-row td {
+    .whats-link { display: inline-block; margin-top: 6px; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      border: 1px solid transparent;
+      text-transform: capitalize;
+      white-space: nowrap;
+    }
+
+    .status-marcado { background: var(--warning-bg); color: var(--warning-text); border-color: #fed7aa; }
+    .status-confirmado { background: var(--info-bg); color: var(--info-text); border-color: #bfdbfe; }
+    .status-concluido { background: var(--success-bg); color: var(--success-text); border-color: #bbf7d0; }
+    .status-cancelado,
+    .status-faltou { background: var(--danger-bg); color: var(--danger-text); border-color: #fecaca; }
+
+    .obs {
+      color: var(--muted);
+      max-width: 260px;
+      word-break: break-word;
+    }
+
+    .empty {
+      padding: 42px 20px;
       text-align: center;
-      padding: 2rem;
-      color: #7f95b0;
     }
 
-    .note {
-      margin-top: 1.5rem;
-      font-size: 0.8rem;
-      color: #66809c;
+    .empty strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 6px;
+    }
+
+    .empty span { color: var(--muted); }
+
+    .mobile-list {
+      display: none;
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .mobile-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .mobile-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .mobile-time {
+      font-weight: 800;
+      font-size: 0.98rem;
+    }
+
+    .mobile-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 12px;
+    }
+
+    .item-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    .footer-note {
+      margin-top: 14px;
       text-align: center;
-      background: #f1f5f9;
-      padding: 0.75rem;
-      border-radius: 2rem;
-      width: fit-content;
-      margin-left: auto;
-      margin-right: auto;
+      color: var(--muted);
+      font-size: 0.82rem;
     }
 
-    .muted-small {
-      font-size: 0.75rem;
-      color: #6c819e;
+    @media (max-width: 980px) {
+      .filters-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .actions {
+        justify-content: stretch;
+      }
+
+      .actions .btn {
+        flex: 1 1 0;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
-    @media (max-width: 700px) {
-      body { padding: 1rem; }
-      .header { flex-direction: column; text-align: center; padding: 1.5rem; }
-      .logo { height: 55px; }
-      .filters { flex-direction: column; align-items: stretch; }
-      .filter-group { width: 100%; }
-      .btn { justify-content: center; }
-      .stat-number { font-size: 1.8rem; }
+    @media (max-width: 720px) {
+      body { padding: 14px 12px 28px; }
+
+      .hero {
+        padding: 18px;
+        border-radius: 22px;
+      }
+
+      .brand {
+        align-items: flex-start;
+      }
+
+      .logo-wrap {
+        width: 62px;
+        height: 62px;
+        border-radius: 16px;
+      }
+
+      .filters-grid,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .agenda-head {
+        padding: 16px;
+      }
+
+      .table-scroll { display: none; }
+      .mobile-list { display: grid; }
+
+      .mobile-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="page">
+    {% set logo_padrao = url_for('static', filename='uploads/empresas/gtech.jpeg') %}
+    {% set logo_url = empresa.logo_url if empresa.logo_url else logo_padrao %}
 
-<div style="background:red;color:white;font-size:32px;padding:20px;text-align:center;font-weight:bold;">
-  TESTE G TECH AGENDA
-</div>
+    <section class="hero">
+      <div class="hero-top">
+        <div class="brand">
+          <div class="logo-wrap">
+            <img
+              src="{{ logo_url }}"
+              alt="Logo {{ empresa.nome }}"
+              class="logo"
+              onerror="this.onerror=null; this.src='{{ logo_padrao }}';"
+            >
+          </div>
+          <div>
+            <h1>Agenda do Dia</h1>
+            <p><strong>{{ empresa.nome }}</strong> • acompanhamento rápido dos horários agendados</p>
+          </div>
+        </div>
 
-<div class="container">
-  <div class="header">
-    <div class="logo-area">
-      {% set logo_url = empresa.logo_url if empresa.logo_url else url_for('static', filename='uploads/empresas/gtech.jpeg') %}
-      <img src="{{ logo_url }}" alt="Logo {{ empresa.nome }}" class="logo" onerror="this.onerror=null; this.src='{{ url_for('static', filename='uploads/empresas/gtech.jpeg') }}';">
-    </div>
-    <div class="header-info">
-      <h1>Agenda do Dia</h1>
-      <p><strong>{{ empresa.nome }}</strong> • Gestão rápida de horários</p>
-      <div class="badge">🔐 acesso interno | token exclusivo da empresa</div>
-    </div>
-  </div>
+        <div class="hero-meta">
+          <span class="chip">🔐 Acesso interno</span>
+          <span class="chip">📅 {{ data_ref }}</span>
+          <span class="chip">🏪 {{ empresa.slug }}</span>
+        </div>
+      </div>
+    </section>
 
-  <form class="filters" method="get">
-    <input type="hidden" name="token" value="{{ token }}">
-    <div class="filter-group">
-      <label>📅 Data</label>
-      <input type="date" name="data" value="{{ data_ref }}">
-    </div>
-    <div class="filter-group">
-      <label>✂️ Profissional</label>
-      <select name="barbeiro_id">
-        <option value="">Todos os barbeiros</option>
-        {% for barbeiro in barbeiros %}
-          <option value="{{ barbeiro.id }}" {% if barbeiro.id == barbeiro_selecionado %}selected{% endif %}>
-            {{ barbeiro.nome }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-    <button type="submit" class="btn">Atualizar</button>
-    <a href="{{ url_for('exportar_csv_interno', empresa_slug=empresa.slug, token=token, data=data_ref, barbeiro_id=barbeiro_selecionado) }}" class="btn btn-outline">📎 Exportar CSV</a>
-  </form>
+    <section class="panel filters">
+      <form method="get">
+        <input type="hidden" name="token" value="{{ token }}">
+        <div class="filters-grid">
+          <div class="field">
+            <label for="data">Data</label>
+            <input id="data" type="date" name="data" value="{{ data_ref }}">
+          </div>
 
-  <div class="stats-grid">
-    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-number">{{ resumo.total }}</div></div>
-    <div class="stat-card"><div class="stat-label">📌 Marcados</div><div class="stat-number">{{ resumo.marcado }}</div></div>
-    <div class="stat-card"><div class="stat-label">✅ Confirmados</div><div class="stat-number">{{ resumo.confirmado }}</div></div>
-    <div class="stat-card"><div class="stat-label">✔️ Concluídos</div><div class="stat-number">{{ resumo.concluido }}</div></div>
-    <div class="stat-card"><div class="stat-label">⚠️ Cancelados/Faltas</div><div class="stat-number">{{ resumo.cancelado + resumo.faltou }}</div></div>
-  </div>
+          <div class="field">
+            <label for="barbeiro_id">Profissional</label>
+            <select id="barbeiro_id" name="barbeiro_id">
+              <option value="">Todos os barbeiros</option>
+              {% for barbeiro in barbeiros %}
+                <option value="{{ barbeiro.id }}" {% if barbeiro.id == barbeiro_selecionado %}selected{% endif %}>{{ barbeiro.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-  <div class="table-container">
-    <div class="table-header">
-      <strong>📋 Agendamentos · {{ data_ref }}</strong>
-      <span>{{ empresa.slug }}</span>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Horário</th>
-          <th>Cliente</th>
-          <th>Telefone</th>
-          <th>Serviço</th>
-          <th>Barbeiro</th>
-          <th>Status</th>
-          <th>Observação</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if agendamentos %}
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Atualizar agenda</button>
+          </div>
+
+          <div class="actions">
+            <a
+              href="{{ url_for('exportar_csv_interno', empresa_slug=empresa.slug, token=token, data=data_ref, barbeiro_id=barbeiro_selecionado) }}"
+              class="btn btn-secondary"
+            >Exportar CSV</a>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="stats">
+      <article class="panel stat-card">
+        <div class="stat-label">Total do dia</div>
+        <div class="stat-value">{{ resumo.total }}</div>
+        <div class="stat-sub">agendamentos encontrados</div>
+      </article>
+
+      <article class="panel stat-card">
+        <div class="stat-label">Marcados</div>
+        <div class="stat-value">{{ resumo.marcado }}</div>
+        <div class="stat-sub">ainda pendentes no fluxo</div>
+      </article>
+
+      <article class="panel stat-card">
+        <div class="stat-label">Confirmados</div>
+        <div class="stat-value">{{ resumo.confirmado }}</div>
+        <div class="stat-sub">clientes confirmados</div>
+      </article>
+
+      <article class="panel stat-card">
+        <div class="stat-label">Concluídos</div>
+        <div class="stat-value">{{ resumo.concluido }}</div>
+        <div class="stat-sub">serviços finalizados</div>
+      </article>
+
+      <article class="panel stat-card">
+        <div class="stat-label">Cancelados/Faltas</div>
+        <div class="stat-value">{{ resumo.cancelado + resumo.faltou }}</div>
+        <div class="stat-sub">atenção do time</div>
+      </article>
+    </section>
+
+    <section class="panel agenda-wrap">
+      <div class="agenda-head">
+        <div class="agenda-title">
+          <strong>Lista de agendamentos</strong>
+          <span>Visualização interna da agenda da barbearia</span>
+        </div>
+        <small>Filtro atual: {% if barbeiro_selecionado %}1 profissional selecionado{% else %}todos os profissionais{% endif %}</small>
+      </div>
+
+      {% if agendamentos %}
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Horário</th>
+                <th>Cliente</th>
+                <th>Telefone</th>
+                <th>Serviço</th>
+                <th>Profissional</th>
+                <th>Status</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in agendamentos %}
+                {% set status_class = 'status-' + item.status|lower %}
+                {% set telefone_limpo = item.cliente_telefone|replace(' ', '')|replace('(', '')|replace(')', '')|replace('-', '')|replace('+', '') %}
+                <tr>
+                  <td>
+                    <span class="time">{{ item.hora_inicio }} - {{ item.hora_fim }}</span>
+                  </td>
+                  <td>
+                    <span class="client-name">{{ item.cliente_nome }}</span>
+                    {% if item.cliente_email %}
+                      <span class="subtext">{{ item.cliente_email }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.cliente_telefone %}
+                      <a class="phone-link" href="tel:{{ telefone_limpo }}">{{ item.cliente_telefone }}</a>
+                      <a class="whats-link" href="https://wa.me/55{{ telefone_limpo }}" target="_blank" rel="noopener">WhatsApp</a>
+                    {% else %}
+                      <span class="subtext">Não informado</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="service-name">{{ item.servico_nome }}</span>
+                  </td>
+                  <td>
+                    <span class="barber-name">{{ item.barbeiro_nome }}</span>
+                  </td>
+                  <td>
+                    <span class="status {{ status_class }}">{{ item.status }}</span>
+                  </td>
+                  <td>
+                    <span class="obs">{{ item.observacao or 'Sem observação' }}</span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mobile-list">
           {% for item in agendamentos %}
-          <tr id="row-{{ item.id }}">
-            <td style="white-space: nowrap;">{{ item.hora_inicio }} – {{ item.hora_fim }}</td>
-            <td>
-              <strong>{{ item.cliente_nome }}</strong>
-              {% if item.cliente_email %}
-                <br><span class="muted-small">{{ item.cliente_email }}</span>
-              {% endif %}
-            </td>
-            <td>{{ item.cliente_telefone }}</td>
-            <td>{{ item.servico_nome }}</td>
-            <td>{{ item.barbeiro_nome }}</td>
-            <td>
-              <div class="status-box">
-                <span id="badge-{{ item.id }}" class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span>
-
-                <select class="status-select" id="select-{{ item.id }}">
-                  <option value="marcado" {% if item.status|lower == 'marcado' %}selected{% endif %}>Marcado</option>
-                  <option value="confirmado" {% if item.status|lower == 'confirmado' %}selected{% endif %}>Confirmado</option>
-                  <option value="concluido" {% if item.status|lower == 'concluido' %}selected{% endif %}>Concluído</option>
-                  <option value="cancelado" {% if item.status|lower == 'cancelado' %}selected{% endif %}>Cancelado</option>
-                  <option value="faltou" {% if item.status|lower == 'faltou' %}selected{% endif %}>Faltou</option>
-                </select>
-
-                <button class="btn btn-save" type="button" onclick="atualizarStatus('{{ item.id }}')">Salvar</button>
-                <div class="status-feedback" id="feedback-{{ item.id }}"></div>
+            {% set status_class = 'status-' + item.status|lower %}
+            {% set telefone_limpo = item.cliente_telefone|replace(' ', '')|replace('(', '')|replace(')', '')|replace('-', '')|replace('+', '') %}
+            <article class="mobile-card">
+              <div class="mobile-card-top">
+                <div>
+                  <div class="mobile-time">{{ item.hora_inicio }} - {{ item.hora_fim }}</div>
+                  <div class="subtext">{{ item.cliente_nome }}</div>
+                </div>
+                <span class="status {{ status_class }}">{{ item.status }}</span>
               </div>
-            </td>
-            <td>{{ item.observacao or '—' }}</td>
-          </tr>
+
+              <div class="mobile-grid">
+                <div>
+                  <div class="item-label">Serviço</div>
+                  <div>{{ item.servico_nome }}</div>
+                </div>
+                <div>
+                  <div class="item-label">Profissional</div>
+                  <div>{{ item.barbeiro_nome }}</div>
+                </div>
+                <div>
+                  <div class="item-label">Telefone</div>
+                  {% if item.cliente_telefone %}
+                    <a class="phone-link" href="tel:{{ telefone_limpo }}">{{ item.cliente_telefone }}</a>
+                  {% else %}
+                    <div>Não informado</div>
+                  {% endif %}
+                </div>
+                <div>
+                  <div class="item-label">Contato rápido</div>
+                  {% if item.cliente_telefone %}
+                    <a class="whats-link" href="https://wa.me/55{{ telefone_limpo }}" target="_blank" rel="noopener">Abrir WhatsApp</a>
+                  {% else %}
+                    <div>—</div>
+                  {% endif %}
+                </div>
+                <div>
+                  <div class="item-label">E-mail</div>
+                  <div>{{ item.cliente_email or 'Não informado' }}</div>
+                </div>
+                <div>
+                  <div class="item-label">Observação</div>
+                  <div>{{ item.observacao or 'Sem observação' }}</div>
+                </div>
+              </div>
+            </article>
           {% endfor %}
-        {% else %}
-          <tr class="empty-row">
-            <td colspan="7">Nenhum agendamento encontrado para esta data e filtro.</td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
+        </div>
+      {% else %}
+        <div class="empty">
+          <strong>Nenhum agendamento encontrado</strong>
+          <span>Altere a data ou o profissional para verificar outros horários.</span>
+        </div>
+      {% endif %}
+    </section>
+
+    <div class="footer-note">
+      Painel interno com token único por barbearia • visual limpo para uso diário no celular e no computador
+    </div>
   </div>
-
-  <div class="note">
-    🧠 Painel interno exclusivo • altere status sem precisar mexer no banco
-  </div>
-</div>
-
-<script>
-  async function atualizarStatus(agendamentoId) {
-    const select = document.getElementById(`select-${agendamentoId}`);
-    const badge = document.getElementById(`badge-${agendamentoId}`);
-    const feedback = document.getElementById(`feedback-${agendamentoId}`);
-    const button = document.querySelector(`#row-${agendamentoId} .btn-save`);
-
-    const novoStatus = select.value;
-    const token = "{{ token }}";
-
-    button.disabled = true;
-    feedback.textContent = "Salvando...";
-
-    try {
-      const resposta = await fetch(`/api/agendamentos/${agendamentoId}/status?token=${encodeURIComponent(token)}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ status: novoStatus })
-      });
-
-      const data = await resposta.json();
-
-      if (!resposta.ok) {
-        feedback.textContent = data.message || data.error || "Erro ao atualizar.";
-        button.disabled = false;
-        return;
-      }
-
-      badge.textContent = novoStatus;
-      badge.className = `status-badge status-${novoStatus}`;
-      feedback.textContent = "Status atualizado com sucesso.";
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 700);
-
-    } catch (erro) {
-      feedback.textContent = "Falha de conexão ao salvar status.";
-    } finally {
-      button.disabled = false;
-    }
-  }
-</script>
 </body>
 </html>
