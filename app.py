@@ -6,146 +6,166 @@ import os
 import re
 import time
 import secrets
+import traceback
 from datetime import datetime, date
 from urllib.parse import quote
 from collections import defaultdict, deque
-
+ 
 from flask import (
     Flask, render_template, request, jsonify,
     send_file, redirect, url_for, abort
 )
-
+ 
 app = Flask(__name__)
-
+ 
 # ==========================================================
-# CONFIGURACOES - CORRIGIDO PARA RAILWAY
+# CONFIGURACOES
 # ==========================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "database.db")
-
+ 
 APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", secrets.token_hex(32))
 DEFAULT_EMPRESA_SLUG = os.getenv("DEFAULT_EMPRESA_SLUG", "barbearia")
 MAX_AGENDAMENTO_POR_MINUTO = int(os.getenv("MAX_AGENDAMENTO_POR_MINUTO", "10"))
 MAX_DISPONIBILIDADE_POR_MINUTO = int(os.getenv("MAX_DISPONIBILIDADE_POR_MINUTO", "60"))
-
+ 
 app.config["SECRET_KEY"] = APP_SECRET_KEY
 app.config["JSON_AS_ASCII"] = False
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
-
+ 
 RATE_LIMIT_STORAGE = defaultdict(deque)
-
+ 
 PHONE_RE = re.compile(r"^\d{10,13}$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-STATUS_VALIDOS = ["marcado", "confirmado", "concluido", "cancelado"]
-
-
+STATUS_VALIDOS = ["marcado", "confirmado", "concluido", "cancelado", "faltou"]
+ 
+ 
 # ==========================================================
 # UTILITARIOS
 # ==========================================================
 def now_iso():
     return datetime.now().isoformat(timespec="seconds")
-
-
+ 
+ 
 def get_client_ip():
     forwarded_for = request.headers.get("X-Forwarded-For", "")
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
     return request.remote_addr or "unknown"
-
-
+ 
+ 
 def rate_limit_check(key: str, limit: int, window_seconds: int = 60) -> bool:
     current = time.time()
     queue = RATE_LIMIT_STORAGE[key]
-
     while queue and (current - queue[0]) > window_seconds:
         queue.popleft()
-
     if len(queue) >= limit:
         return False
-
     queue.append(current)
     return True
-
-
+ 
+ 
 def limpar_texto(valor, max_len):
     valor = (valor or "").strip()
     return valor[:max_len]
-
-
+ 
+ 
 def normalizar_telefone(telefone: str) -> str:
     return "".join(filter(str.isdigit, telefone or ""))
-
-
+ 
+ 
 def telefone_valido(telefone: str) -> bool:
     return bool(PHONE_RE.match(telefone))
-
-
+ 
+ 
 def email_valido(email: str) -> bool:
     if not email:
         return True
     return bool(EMAIL_RE.match(email))
-
-
+ 
+ 
 def validar_uuid(id_str):
     try:
         uuid.UUID(str(id_str))
         return str(id_str)
     except (TypeError, ValueError, AttributeError):
         return None
-
-
+ 
+ 
 def hora_str_para_minutos(hora_str: str) -> int:
-    h, m = map(int, hora_str.split(":"))
-    return h * 60 + m
-
-
+    try:
+        h, m = map(int, (hora_str or "00:00").split(":"))
+        return h * 60 + m
+    except Exception:
+        return 0
+ 
+ 
 def minutos_para_hora_str(minutos: int) -> str:
     return f"{minutos // 60:02d}:{minutos % 60:02d}"
-
-
-def intervalo_sobrepoe(inicio_a: str, fim_a: str, inicio_b: str, fim_b: str) -> bool:
+ 
+ 
+def intervalo_sobrepoe(inicio_a, fim_a, inicio_b, fim_b) -> bool:
     a1 = hora_str_para_minutos(inicio_a)
     a2 = hora_str_para_minutos(fim_a)
     b1 = hora_str_para_minutos(inicio_b)
     b2 = hora_str_para_minutos(fim_b)
     return a1 < b2 and a2 > b1
-
-
+ 
+ 
 def validar_data_yyyy_mm_dd(data_str: str) -> bool:
     try:
         datetime.strptime(data_str, "%Y-%m-%d")
         return True
-    except ValueError:
+    except (ValueError, TypeError):
         return False
-
-
+ 
+ 
 def validar_hora_hh_mm(hora_str: str) -> bool:
     try:
         if len(hora_str) != 5 or hora_str[2] != ":":
             return False
-        h, m = map(int, hora_str.split(':'))
+        h, m = map(int, hora_str.split(":"))
         return 0 <= h <= 23 and 0 <= m <= 59
     except Exception:
         return False
-
-
+ 
+ 
 def parse_data(data_str: str):
     return datetime.strptime(data_str, "%Y-%m-%d").date()
-
-
+ 
+ 
 def gerar_token_empresa() -> str:
     return secrets.token_urlsafe(32)
-
-
+ 
+ 
 def mascarar_telefone(telefone: str) -> str:
     digits = normalizar_telefone(telefone)
     if len(digits) < 4:
         return "***"
     return "*" * max(0, len(digits) - 4) + digits[-4:]
-
-
+ 
+ 
+def row_to_dict(row):
+    """Converte sqlite3.Row para dict de forma segura."""
+    if row is None:
+        return {}
+    if isinstance(row, dict):
+        return row
+    try:
+        return dict(row)
+    except Exception:
+        return {}
+ 
+ 
+def rows_to_dicts(rows):
+    """Converte lista de sqlite3.Row para lista de dicts."""
+    if not rows:
+        return []
+    return [row_to_dict(r) for r in rows]
+ 
+ 
 # ==========================================================
 # BANCO DE DADOS
 # ==========================================================
@@ -153,23 +173,27 @@ def get_conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
-
-
+ 
+ 
 def ensure_column_exists(conn, table_name, column_name, alter_sql):
-    cols = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    nomes = [c["name"] for c in cols]
-    if column_name not in nomes:
-        conn.execute(alter_sql)
-        conn.commit()
-
-
+    try:
+        cols = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        nomes = [c["name"] for c in cols]
+        if column_name not in nomes:
+            conn.execute(alter_sql)
+            conn.commit()
+    except Exception as e:
+        print(f"[WARN] ensure_column_exists({table_name}.{column_name}): {e}")
+ 
+ 
 def init_db():
     conn = get_conn()
-
+ 
     conn.executescript("""
     PRAGMA foreign_keys = ON;
-
+ 
     CREATE TABLE IF NOT EXISTS empresas (
         id TEXT PRIMARY KEY,
         nome TEXT NOT NULL,
@@ -183,7 +207,7 @@ def init_db():
         criado_em TEXT NOT NULL,
         atualizado_em TEXT
     );
-
+ 
     CREATE TABLE IF NOT EXISTS barbeiros (
         id TEXT PRIMARY KEY,
         empresa_id TEXT NOT NULL,
@@ -197,7 +221,7 @@ def init_db():
         atualizado_em TEXT,
         FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
     );
-
+ 
     CREATE TABLE IF NOT EXISTS servicos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         empresa_id TEXT NOT NULL,
@@ -205,12 +229,13 @@ def init_db():
         descricao TEXT,
         preco REAL NOT NULL DEFAULT 0,
         duracao_min INTEGER NOT NULL DEFAULT 30,
+        emoji TEXT,
         ativo INTEGER NOT NULL DEFAULT 1,
         criado_em TEXT NOT NULL,
         atualizado_em TEXT,
         FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
     );
-
+ 
     CREATE TABLE IF NOT EXISTS barbeiro_servicos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         barbeiro_id TEXT NOT NULL,
@@ -220,7 +245,7 @@ def init_db():
         FOREIGN KEY (barbeiro_id) REFERENCES barbeiros(id) ON DELETE CASCADE,
         FOREIGN KEY (servico_id) REFERENCES servicos(id) ON DELETE CASCADE
     );
-
+ 
     CREATE TABLE IF NOT EXISTS clientes (
         id TEXT PRIMARY KEY,
         empresa_id TEXT NOT NULL,
@@ -233,7 +258,7 @@ def init_db():
         UNIQUE(empresa_id, telefone),
         FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
     );
-
+ 
     CREATE TABLE IF NOT EXISTS agendamentos (
         id TEXT PRIMARY KEY,
         empresa_id TEXT NOT NULL,
@@ -257,7 +282,7 @@ def init_db():
         FOREIGN KEY (barbeiro_id) REFERENCES barbeiros(id) ON DELETE CASCADE,
         FOREIGN KEY (servico_id) REFERENCES servicos(id) ON DELETE CASCADE
     );
-
+ 
     CREATE TABLE IF NOT EXISTS bloqueios_agenda (
         id TEXT PRIMARY KEY,
         empresa_id TEXT NOT NULL,
@@ -271,7 +296,7 @@ def init_db():
         FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE,
         FOREIGN KEY (barbeiro_id) REFERENCES barbeiros(id) ON DELETE CASCADE
     );
-
+ 
     CREATE TABLE IF NOT EXISTS configuracoes_empresa (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         empresa_id TEXT NOT NULL UNIQUE,
@@ -285,7 +310,7 @@ def init_db():
         atualizado_em TEXT,
         FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
     );
-
+ 
     CREATE INDEX IF NOT EXISTS idx_barbeiros_empresa ON barbeiros (empresa_id);
     CREATE INDEX IF NOT EXISTS idx_servicos_empresa ON servicos (empresa_id);
     CREATE INDEX IF NOT EXISTS idx_clientes_empresa_telefone ON clientes (empresa_id, telefone);
@@ -293,10 +318,14 @@ def init_db():
     CREATE INDEX IF NOT EXISTS idx_agendamentos_barbeiro_data ON agendamentos (barbeiro_id, data);
     CREATE INDEX IF NOT EXISTS idx_bloqueios_empresa_data ON bloqueios_agenda (empresa_id, data);
     """)
-
+ 
+    # Garantir coluna token na tabela empresas (schema antigo pode não ter)
     ensure_column_exists(conn, "empresas", "token",
                          "ALTER TABLE empresas ADD COLUMN token TEXT")
-
+    ensure_column_exists(conn, "servicos", "emoji",
+                         "ALTER TABLE servicos ADD COLUMN emoji TEXT")
+ 
+    # Gerar token para empresas que ainda não têm
     empresas_sem_token = conn.execute(
         "SELECT id FROM empresas WHERE token IS NULL OR TRIM(token) = ''"
     ).fetchall()
@@ -306,109 +335,92 @@ def init_db():
             (gerar_token_empresa(), emp["id"])
         )
     conn.commit()
-
+ 
+    # Criar empresa padrão se não existir
     empresa = conn.execute(
         "SELECT id, token FROM empresas WHERE LOWER(TRIM(slug)) = LOWER(TRIM(?)) LIMIT 1",
         (DEFAULT_EMPRESA_SLUG,)
     ).fetchone()
-
+ 
     if not empresa:
         agora = now_iso()
         empresa_id = str(uuid.uuid4())
         token_padrao = gerar_token_empresa()
-
-        conn.execute(
-            """
+ 
+        conn.execute("""
             INSERT INTO empresas (
                 id, nome, slug, telefone, email, endereco, logo_url,
                 ativo, criado_em, atualizado_em, token
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                empresa_id,
-                "Barbearia do Ze",
-                DEFAULT_EMPRESA_SLUG,
-                "11999999999",
-                "contato@barbearia.com",
-                "Sao Paulo - SP",
-                "/static/uploads/empresas/logo_padrao.jpg",
-                1,
-                agora,
-                agora,
-                token_padrao,
-            ),
-        )
-
-        conn.execute(
-            """
+        """, (
+            empresa_id,
+            "Barbearia do Ze",
+            DEFAULT_EMPRESA_SLUG,
+            "11999999999",
+            "contato@barbearia.com",
+            "Sao Paulo - SP",
+            None,
+            1,
+            agora,
+            agora,
+            token_padrao,
+        ))
+ 
+        conn.execute("""
             INSERT INTO configuracoes_empresa (
                 empresa_id, hora_abertura, hora_fechamento, intervalo_min,
                 antecedencia_max_dias, permite_encaixe, envia_whatsapp,
                 criado_em, atualizado_em
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (empresa_id, "08:00", "20:00", 30, 30, 0, 1, agora, agora),
-        )
-
-        barbeiros = [
+        """, (empresa_id, "08:00", "20:00", 30, 30, 0, 1, agora, agora))
+ 
+        barbeiros_data = [
             (str(uuid.uuid4()), empresa_id, "Joao Silva", "11988888888", None, None, None, 1, agora, agora),
             (str(uuid.uuid4()), empresa_id, "Carlos Souza", "11999999999", None, None, None, 1, agora, agora),
         ]
-        conn.executemany(
-            """
+        conn.executemany("""
             INSERT INTO barbeiros (
                 id, empresa_id, nome, whatsapp, email, foto_url, bio,
                 ativo, criado_em, atualizado_em
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            barbeiros,
-        )
-
-        servicos = [
-            (empresa_id, "Corte classico", "Corte tradicional", 35.00, 30, 1, agora, agora),
-            (empresa_id, "Barba", "Barba completa", 25.00, 20, 1, agora, agora),
-            (empresa_id, "Corte + Barba", "Pacote completo", 55.00, 50, 1, agora, agora),
+        """, barbeiros_data)
+ 
+        servicos_data = [
+            (empresa_id, "Corte classico", "Corte tradicional", 35.00, 30, "✂️", 1, agora, agora),
+            (empresa_id, "Barba", "Barba completa", 25.00, 20, "🧔", 1, agora, agora),
+            (empresa_id, "Corte + Barba", "Pacote completo", 55.00, 50, "🔥", 1, agora, agora),
         ]
-        conn.executemany(
-            """
+        conn.executemany("""
             INSERT INTO servicos (
                 empresa_id, nome, descricao, preco, duracao_min,
-                ativo, criado_em, atualizado_em
+                emoji, ativo, criado_em, atualizado_em
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            servicos,
-        )
-
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, servicos_data)
+ 
         servicos_ids = conn.execute(
-            "SELECT id FROM servicos WHERE empresa_id = ?",
-            (empresa_id,),
+            "SELECT id FROM servicos WHERE empresa_id = ?", (empresa_id,)
         ).fetchall()
-        for barbeiro in barbeiros:
-            for servico in servicos_ids:
-                conn.execute(
-                    """
+        for barb in barbeiros_data:
+            for serv in servicos_ids:
+                conn.execute("""
                     INSERT OR IGNORE INTO barbeiro_servicos (barbeiro_id, servico_id, criado_em)
                     VALUES (?, ?, ?)
-                    """,
-                    (barbeiro[0], servico["id"], agora),
-                )
-
+                """, (barb[0], serv["id"], agora))
+ 
         conn.commit()
         print(f"Empresa padrao criada: slug={DEFAULT_EMPRESA_SLUG}, token={token_padrao}")
-
+ 
     conn.close()
-
-
-# ==========================================================
-# INICIALIZACAO DO BANCO (GUNICORN)
-# ==========================================================
+ 
+ 
+# Inicializa banco ao carregar o módulo (compatível com Gunicorn)
 init_db()
-
-
+ 
+ 
 # ==========================================================
 # SEGURANCA (HEADERS)
 # ==========================================================
@@ -424,346 +436,341 @@ def add_security_headers(response):
         "font-src 'self' https: data:;"
     )
     return response
-
-
+ 
+ 
 # ==========================================================
-# FUNCOES DE NEGOCIO (BANCO)
+# FUNCOES DE NEGOCIO
 # ==========================================================
 def get_empresa_por_slug(slug):
-    conn = get_conn()
-    empresa = conn.execute(
-        "SELECT * FROM empresas WHERE LOWER(TRIM(slug)) = LOWER(TRIM(?)) AND ativo = 1",
-        (slug,),
-    ).fetchone()
-    conn.close()
-    return empresa
-
-
+    try:
+        conn = get_conn()
+        empresa = conn.execute(
+            "SELECT * FROM empresas WHERE LOWER(TRIM(slug)) = LOWER(TRIM(?)) AND ativo = 1",
+            (slug,)
+        ).fetchone()
+        conn.close()
+        return row_to_dict(empresa) if empresa else None
+    except Exception as e:
+        print(f"[ERROR] get_empresa_por_slug: {e}")
+        return None
+ 
+ 
 def validar_token_empresa(empresa_slug, token):
-    conn = get_conn()
-    empresa = conn.execute(
-        "SELECT * FROM empresas WHERE LOWER(TRIM(slug)) = LOWER(TRIM(?)) AND token = ? AND ativo = 1",
-        (empresa_slug, token),
-    ).fetchone()
-    conn.close()
-    return empresa
-
-
+    """Retorna dict da empresa se token válido, senão None."""
+    try:
+        if not token or not empresa_slug:
+            return None
+        conn = get_conn()
+        empresa = conn.execute(
+            "SELECT * FROM empresas WHERE LOWER(TRIM(slug)) = LOWER(TRIM(?)) AND token = ? AND ativo = 1",
+            (empresa_slug, token)
+        ).fetchone()
+        conn.close()
+        return row_to_dict(empresa) if empresa else None
+    except Exception as e:
+        print(f"[ERROR] validar_token_empresa: {e}")
+        return None
+ 
+ 
 def get_config_empresa(empresa_id):
-    conn = get_conn()
-    config = conn.execute(
-        """
-        SELECT hora_abertura, hora_fechamento, intervalo_min, antecedencia_max_dias, permite_encaixe
-        FROM configuracoes_empresa
-        WHERE empresa_id = ?
-        """,
-        (empresa_id,),
-    ).fetchone()
-    conn.close()
-    return config
-
-
+    try:
+        conn = get_conn()
+        config = conn.execute("""
+            SELECT hora_abertura, hora_fechamento, intervalo_min,
+                   antecedencia_max_dias, permite_encaixe
+            FROM configuracoes_empresa
+            WHERE empresa_id = ?
+        """, (empresa_id,)).fetchone()
+        conn.close()
+        return row_to_dict(config) if config else {}
+    except Exception as e:
+        print(f"[ERROR] get_config_empresa: {e}")
+        return {}
+ 
+ 
 def listar_barbeiros(empresa_id):
-    conn = get_conn()
-    rows = conn.execute(
-        """
-        SELECT id, nome, whatsapp, foto_url
-        FROM barbeiros
-        WHERE empresa_id = ? AND ativo = 1
-        ORDER BY nome
-        """,
-        (empresa_id,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
+    """Retorna lista de dicts, nunca falha."""
+    try:
+        conn = get_conn()
+        rows = conn.execute("""
+            SELECT id, nome, whatsapp, foto_url
+            FROM barbeiros
+            WHERE empresa_id = ? AND ativo = 1
+            ORDER BY nome
+        """, (empresa_id,)).fetchall()
+        conn.close()
+        return rows_to_dicts(rows)
+    except Exception as e:
+        print(f"[ERROR] listar_barbeiros: {e}")
+        return []
+ 
+ 
 def listar_servicos(empresa_id):
-    conn = get_conn()
-    rows = conn.execute(
-        """
-        SELECT id, nome, preco, duracao_min, descricao
-        FROM servicos
-        WHERE empresa_id = ? AND ativo = 1
-        ORDER BY nome
-        """,
-        (empresa_id,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
+    """Retorna lista de dicts, nunca falha."""
+    try:
+        conn = get_conn()
+        rows = conn.execute("""
+            SELECT id, nome, preco, duracao_min, descricao
+            FROM servicos
+            WHERE empresa_id = ? AND ativo = 1
+            ORDER BY nome
+        """, (empresa_id,)).fetchall()
+        conn.close()
+        return rows_to_dicts(rows)
+    except Exception as e:
+        print(f"[ERROR] listar_servicos: {e}")
+        return []
+ 
+ 
 def gerar_horarios(empresa_id):
     config = get_config_empresa(empresa_id)
-    if not config:
-        abertura = "08:00"
-        fechamento = "20:00"
-        intervalo = 30
-    else:
-        abertura = config["hora_abertura"]
-        fechamento = config["hora_fechamento"]
-        intervalo = config["intervalo_min"]
-
+    abertura = config.get("hora_abertura") or "08:00"
+    fechamento = config.get("hora_fechamento") or "20:00"
+    intervalo = int(config.get("intervalo_min") or 30)
     inicio = hora_str_para_minutos(abertura)
     fim = hora_str_para_minutos(fechamento)
     return [minutos_para_hora_str(m) for m in range(inicio, fim, intervalo)]
-
-
+ 
+ 
 def profissional_pertence_empresa(conn, profissional_id, empresa_id):
-    return conn.execute(
-        """
+    return conn.execute("""
         SELECT id, nome, whatsapp
         FROM barbeiros
         WHERE id = ? AND empresa_id = ? AND ativo = 1
-        """,
-        (profissional_id, empresa_id),
-    ).fetchone()
-
-
+    """, (profissional_id, empresa_id)).fetchone()
+ 
+ 
 def servico_pertence_empresa(conn, servico_id, empresa_id):
-    return conn.execute(
-        """
+    return conn.execute("""
         SELECT id, nome, descricao, preco, duracao_min
         FROM servicos
         WHERE id = ? AND empresa_id = ? AND ativo = 1
-        """,
-        (servico_id, empresa_id),
-    ).fetchone()
-
-
+    """, (servico_id, empresa_id)).fetchone()
+ 
+ 
 def servico_vinculado_ao_barbeiro(conn, profissional_id, servico_id):
-    return conn.execute(
-        """
+    return conn.execute("""
         SELECT 1 FROM barbeiro_servicos
         WHERE barbeiro_id = ? AND servico_id = ?
         LIMIT 1
-        """,
-        (profissional_id, servico_id),
-    ).fetchone() is not None
-
-
+    """, (profissional_id, servico_id)).fetchone() is not None
+ 
+ 
 def existe_bloqueio(conn, empresa_id, barbeiro_id, data_agendamento, hora_inicio, hora_fim):
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT hora_inicio, hora_fim
         FROM bloqueios_agenda
         WHERE empresa_id = ?
           AND data = ?
           AND (barbeiro_id IS NULL OR barbeiro_id = ?)
-        """,
-        (empresa_id, data_agendamento, barbeiro_id),
-    ).fetchall()
-
+    """, (empresa_id, data_agendamento, barbeiro_id)).fetchall()
     for r in rows:
         b_ini = r["hora_inicio"] or "00:00"
         b_fim = r["hora_fim"] or "23:59"
         if intervalo_sobrepoe(hora_inicio, hora_fim, b_ini, b_fim):
             return True
     return False
-
-
+ 
+ 
 def existe_conflito_agendamento(conn, barbeiro_id, data_agendamento, hora_inicio, hora_fim):
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT hora_inicio, hora_fim
         FROM agendamentos
         WHERE barbeiro_id = ?
           AND data = ?
           AND status IN ('marcado', 'confirmado')
-        """,
-        (barbeiro_id, data_agendamento),
-    ).fetchall()
-
+    """, (barbeiro_id, data_agendamento)).fetchall()
     for r in rows:
         if intervalo_sobrepoe(hora_inicio, hora_fim, r["hora_inicio"], r["hora_fim"]):
             return True
     return False
-
-
+ 
+ 
 def buscar_ou_criar_cliente(conn, empresa_id, nome, telefone, email, observacoes=""):
     row = conn.execute(
         "SELECT id FROM clientes WHERE empresa_id = ? AND telefone = ? LIMIT 1",
-        (empresa_id, telefone),
+        (empresa_id, telefone)
     ).fetchone()
     agora = now_iso()
-
     if row:
-        conn.execute(
-            """
+        conn.execute("""
             UPDATE clientes
             SET nome = ?, email = ?, observacoes = ?, atualizado_em = ?
             WHERE id = ?
-            """,
-            (nome, email or None, observacoes or None, agora, row["id"]),
-        )
+        """, (nome, email or None, observacoes or None, agora, row["id"]))
         return row["id"]
-
     cliente_id = str(uuid.uuid4())
-    conn.execute(
-        """
+    conn.execute("""
         INSERT INTO clientes (
             id, empresa_id, nome, telefone, email, observacoes, criado_em, atualizado_em
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (cliente_id, empresa_id, nome, telefone, email or None, observacoes or None, agora, agora),
-    )
+    """, (cliente_id, empresa_id, nome, telefone, email or None, observacoes or None, agora, agora))
     return cliente_id
-
-
+ 
+ 
 def validar_regras_de_data(empresa_id, data_agendamento):
     config = get_config_empresa(empresa_id)
-    antecedencia_max_dias = 30 if not config else int(config["antecedencia_max_dias"])
+    antecedencia_max_dias = int(config.get("antecedencia_max_dias") or 30)
     data_escolhida = parse_data(data_agendamento)
     hoje = date.today()
-
     if data_escolhida < hoje:
         return False, "Nao e permitido agendar em data passada."
-
     diferenca = (data_escolhida - hoje).days
     if diferenca > antecedencia_max_dias:
         return False, f"Agendamento permitido apenas ate {antecedencia_max_dias} dias a frente."
-
     return True, ""
-
-
+ 
+ 
 def obter_agendamentos_do_dia(conn, empresa_id, data_ref, barbeiro_id=""):
-    query = """
-        SELECT
-            a.id,
-            a.data,
-            a.hora_inicio,
-            a.hora_fim,
-            a.cliente_nome,
-            a.cliente_telefone,
-            a.cliente_email,
-            a.preco,
-            a.status,
-            a.observacao,
-            s.nome AS servico_nome,
-            b.nome AS barbeiro_nome,
-            b.id AS barbeiro_id
-        FROM agendamentos a
-        JOIN servicos s ON s.id = a.servico_id
-        JOIN barbeiros b ON b.id = a.barbeiro_id
-        WHERE a.empresa_id = ? AND a.data = ?
-    """
-    params = [empresa_id, data_ref]
-
-    if barbeiro_id:
-        query += " AND a.barbeiro_id = ?"
-        params.append(barbeiro_id)
-
-    query += " ORDER BY a.hora_inicio ASC, a.criado_em ASC"
-    return conn.execute(query, params).fetchall()
-
-
+    """Retorna lista de dicts com todos os campos necessários ao template."""
+    try:
+        query = """
+            SELECT
+                a.id,
+                a.data,
+                a.hora_inicio,
+                a.hora_fim,
+                a.cliente_nome,
+                a.cliente_telefone,
+                a.cliente_email,
+                a.preco,
+                a.status,
+                a.observacao,
+                COALESCE(s.nome, '') AS servico_nome,
+                COALESCE(b.nome, '') AS barbeiro_nome,
+                b.id AS barbeiro_id
+            FROM agendamentos a
+            LEFT JOIN servicos s ON s.id = a.servico_id
+            LEFT JOIN barbeiros b ON b.id = a.barbeiro_id
+            WHERE a.empresa_id = ? AND a.data = ?
+        """
+        params = [empresa_id, data_ref]
+ 
+        if barbeiro_id:
+            query += " AND a.barbeiro_id = ?"
+            params.append(barbeiro_id)
+ 
+        query += " ORDER BY a.hora_inicio ASC, a.criado_em ASC"
+        rows = conn.execute(query, params).fetchall()
+        return rows_to_dicts(rows)
+    except Exception as e:
+        print(f"[ERROR] obter_agendamentos_do_dia: {e}")
+        traceback.print_exc()
+        return []
+ 
+ 
 def gerar_resumo_agendamentos(agendamentos):
+    """
+    Gera resumo com TODOS os status usados no template:
+    total, marcado, confirmado, concluido, cancelado, faltou
+    """
     resumo = {
         "total": 0,
         "marcado": 0,
         "confirmado": 0,
         "concluido": 0,
         "cancelado": 0,
+        "faltou": 0,  # <- CAMPO OBRIGATÓRIO: o template usa resumo.faltou
     }
-    for item in agendamentos:
+    for item in (agendamentos or []):
         resumo["total"] += 1
-        status = (item["status"] or "").lower()
-        if status in resumo:
-            resumo[status] += 1
+        try:
+            status = str(item.get("status") or "").lower()
+            if status in resumo:
+                resumo[status] += 1
+        except Exception:
+            pass
     return resumo
-
-
+ 
+ 
 # ==========================================================
-# ROTAS PUBLICAS (AGENDAMENTO)
+# ROTAS PUBLICAS
 # ==========================================================
 @app.route("/")
 def home():
     return redirect(url_for("pagina_agendamento", empresa_slug=DEFAULT_EMPRESA_SLUG))
-
-
+ 
+ 
 @app.route("/health")
 def health():
     return jsonify({"status": "ok", "time": now_iso()}), 200
-
-
+ 
+ 
 @app.route("/agendar/<empresa_slug>")
 def pagina_agendamento(empresa_slug):
     empresa = get_empresa_por_slug(empresa_slug)
     if not empresa:
         abort(404, description="Empresa não encontrada.")
-
     barbeiros = listar_barbeiros(empresa["id"])
     servicos = listar_servicos(empresa["id"])
-
     return render_template(
         "agenda_publica.html",
-        empresa=dict(empresa),
+        empresa=empresa,
         barbeiros=barbeiros,
         servicos=servicos
     )
-
-
+ 
+ 
 @app.route("/api/agendamentos/disponibilidade")
 def disponibilidade():
     ip = get_client_ip()
     if not rate_limit_check(f"disponibilidade:{ip}", MAX_DISPONIBILIDADE_POR_MINUTO, 60):
         return jsonify({"message": "Muitas consultas. Tente novamente em instantes."}), 429
-
+ 
     empresa_slug = limpar_texto(request.args.get("empresa_slug", ""), 80)
     profissional_id = limpar_texto(request.args.get("profissional_id", ""), 80)
     data_agendamento = limpar_texto(request.args.get("data", ""), 10)
     servico_id = limpar_texto(request.args.get("servico_id", ""), 20)
-
+ 
     if not empresa_slug or not profissional_id or not data_agendamento or not servico_id:
         return jsonify({"message": "Parametros incompletos."}), 400
     if not validar_data_yyyy_mm_dd(data_agendamento):
         return jsonify({"message": "Data invalida."}), 400
-
+ 
     empresa = get_empresa_por_slug(empresa_slug)
     if not empresa:
         return jsonify({"message": "Empresa nao encontrada."}), 404
-
+ 
     ok, msg = validar_regras_de_data(empresa["id"], data_agendamento)
     if not ok:
         return jsonify({"message": msg}), 400
     if not validar_uuid(profissional_id):
         return jsonify({"message": "ID profissional invalido."}), 400
-
+ 
     try:
         servico_id_int = int(servico_id)
     except ValueError:
         return jsonify({"message": "ID servico invalido."}), 400
-
+ 
     conn = get_conn()
     try:
         barbeiro = profissional_pertence_empresa(conn, profissional_id, empresa["id"])
         if not barbeiro:
             return jsonify({"message": "Profissional nao encontrado."}), 404
-
+ 
         servico = servico_pertence_empresa(conn, servico_id_int, empresa["id"])
         if not servico:
             return jsonify({"message": "Servico nao encontrado."}), 404
-
+ 
         if not servico_vinculado_ao_barbeiro(conn, profissional_id, servico_id_int):
             return jsonify({"message": "Profissional nao atende este servico."}), 400
-
+ 
         horarios_base = gerar_horarios(empresa["id"])
         duracao = int(servico["duracao_min"])
         disponiveis = []
         ocupados = []
-
+ 
         config = get_config_empresa(empresa["id"])
-        hora_fechamento = "20:00" if not config else config["hora_fechamento"]
+        hora_fechamento = config.get("hora_fechamento") or "20:00"
         fechamento_min = hora_str_para_minutos(hora_fechamento)
-
+ 
         for h in horarios_base:
             inicio_min = hora_str_para_minutos(h)
             fim_min = inicio_min + duracao
             if fim_min > fechamento_min:
                 ocupados.append(h)
                 continue
-
             hora_fim = minutos_para_hora_str(fim_min)
             if existe_bloqueio(conn, empresa["id"], profissional_id, data_agendamento, h, hora_fim):
                 ocupados.append(h)
@@ -772,22 +779,22 @@ def disponibilidade():
                 ocupados.append(h)
                 continue
             disponiveis.append(h)
-
+ 
         return jsonify({"disponiveis": disponiveis, "ocupados": ocupados}), 200
     finally:
         conn.close()
-
-
+ 
+ 
 @app.route("/agendar/<empresa_slug>/confirmar-json", methods=["POST"])
 def confirmar_agendamento(empresa_slug):
     ip = get_client_ip()
     if not rate_limit_check(f"confirmar:{ip}", MAX_AGENDAMENTO_POR_MINUTO, 60):
         return jsonify({"message": "Muitas tentativas. Aguarde."}), 429
-
+ 
     empresa = get_empresa_por_slug(empresa_slug)
     if not empresa:
         return jsonify({"message": "Empresa nao encontrada."}), 404
-
+ 
     data = request.get_json(silent=True) or {}
     servico_nome = limpar_texto(data.get("servico", ""), 80)
     profissional_nome = limpar_texto(data.get("profissional", ""), 80)
@@ -799,12 +806,12 @@ def confirmar_agendamento(empresa_slug):
     observacao = limpar_texto(data.get("observacao", ""), 300)
     profissional_id = data.get("profissional_id")
     servico_id = data.get("servico_id")
-
+ 
     if not all([servico_nome, profissional_nome, data_agendamento, hora, cliente, telefone]):
         return jsonify({"message": "Campos obrigatorios faltando."}), 400
     if not validar_data_yyyy_mm_dd(data_agendamento):
         return jsonify({"message": "Data invalida."}), 400
-
+ 
     ok, msg = validar_regras_de_data(empresa["id"], data_agendamento)
     if not ok:
         return jsonify({"message": msg}), 400
@@ -812,49 +819,49 @@ def confirmar_agendamento(empresa_slug):
         return jsonify({"message": "Hora invalida."}), 400
     if not validar_uuid(profissional_id):
         return jsonify({"message": "ID profissional invalido."}), 400
-
+ 
     try:
         servico_id = int(servico_id)
     except (TypeError, ValueError):
         return jsonify({"message": "ID servico invalido."}), 400
-
+ 
     if not telefone_valido(telefone):
         return jsonify({"message": "Telefone invalido (10 a 13 digitos)."}), 400
     if email and not email_valido(email):
         return jsonify({"message": "Email invalido."}), 400
-
+ 
     conn = get_conn()
     try:
         barbeiro = profissional_pertence_empresa(conn, profissional_id, empresa["id"])
         if not barbeiro:
             return jsonify({"message": "Barbeiro nao encontrado."}), 404
-
+ 
         servico_valido = servico_pertence_empresa(conn, servico_id, empresa["id"])
         if not servico_valido:
             return jsonify({"message": "Servico nao encontrado."}), 404
-
+ 
         if not servico_vinculado_ao_barbeiro(conn, profissional_id, servico_id):
             return jsonify({"message": "Profissional nao atende este servico."}), 400
-
+ 
         hora_inicio = hora
         duracao = int(servico_valido["duracao_min"])
         total_min = hora_str_para_minutos(hora_inicio) + duracao
         hora_fim = minutos_para_hora_str(total_min)
-
+ 
         horarios_permitidos = gerar_horarios(empresa["id"])
         if hora_inicio not in horarios_permitidos:
             return jsonify({"message": "Horario nao permitido."}), 400
-
+ 
         config = get_config_empresa(empresa["id"])
-        hora_fechamento = "20:00" if not config else config["hora_fechamento"]
+        hora_fechamento = config.get("hora_fechamento") or "20:00"
         if hora_str_para_minutos(hora_fim) > hora_str_para_minutos(hora_fechamento):
             return jsonify({"message": "Servico ultrapassa horario de funcionamento."}), 400
-
+ 
         if existe_bloqueio(conn, empresa["id"], profissional_id, data_agendamento, hora_inicio, hora_fim):
             return jsonify({"message": "Horario bloqueado."}), 409
         if existe_conflito_agendamento(conn, profissional_id, data_agendamento, hora_inicio, hora_fim):
             return jsonify({"message": "Horario ja ocupado."}), 409
-
+ 
         cliente_id = buscar_ou_criar_cliente(
             conn=conn,
             empresa_id=empresa["id"],
@@ -863,11 +870,10 @@ def confirmar_agendamento(empresa_slug):
             email=email,
             observacoes=observacao,
         )
-
+ 
         agendamento_id = str(uuid.uuid4())
         agora = now_iso()
-        conn.execute(
-            """
+        conn.execute("""
             INSERT INTO agendamentos (
                 id, empresa_id, cliente_id, barbeiro_id, servico_id,
                 data, hora_inicio, hora_fim,
@@ -875,29 +881,27 @@ def confirmar_agendamento(empresa_slug):
                 preco, observacao, status, origem, criado_em, atualizado_em
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                agendamento_id,
-                empresa["id"],
-                cliente_id,
-                profissional_id,
-                servico_id,
-                data_agendamento,
-                hora_inicio,
-                hora_fim,
-                cliente,
-                telefone,
-                email or None,
-                float(servico_valido["preco"]),
-                observacao or None,
-                "marcado",
-                "site",
-                agora,
-                agora,
-            ),
-        )
+        """, (
+            agendamento_id,
+            empresa["id"],
+            cliente_id,
+            profissional_id,
+            servico_id,
+            data_agendamento,
+            hora_inicio,
+            hora_fim,
+            cliente,
+            telefone,
+            email or None,
+            float(servico_valido["preco"]),
+            observacao or None,
+            "marcado",
+            "site",
+            agora,
+            agora,
+        ))
         conn.commit()
-
+ 
         mensagem = (
             f"Ola, tudo bem? Gostaria de confirmar um agendamento.\n\n"
             f"Nome: {cliente}\n"
@@ -909,114 +913,132 @@ def confirmar_agendamento(empresa_slug):
         if observacao:
             mensagem += f"Observacao: {observacao}\n"
         mensagem += "\nFico no aguardo da confirmacao. Obrigado."
-
+ 
         whatsapp_url = ""
-        telefone_empresa = normalizar_telefone(empresa["telefone"] or "")
+        telefone_empresa = normalizar_telefone(empresa.get("telefone") or "")
         if telefone_empresa:
             whatsapp_url = f"https://api.whatsapp.com/send?phone=55{telefone_empresa}&text={quote(mensagem)}"
-
-        return jsonify(
-            {
-                "message": "Agendamento realizado com sucesso.",
-                "agendamento_id": agendamento_id,
-                "cliente_telefone_mascarado": mascarar_telefone(telefone),
-                "whatsapp_url_cliente": whatsapp_url,
-            }
-        ), 200
+ 
+        return jsonify({
+            "message": "Agendamento realizado com sucesso.",
+            "agendamento_id": agendamento_id,
+            "cliente_telefone_mascarado": mascarar_telefone(telefone),
+            "whatsapp_url_cliente": whatsapp_url,
+        }), 200
     finally:
         conn.close()
-
-
+ 
+ 
 # ==========================================================
-# ROTAS INTERNAS (DONO) - CORRIGIDA
+# ROTAS INTERNAS (DONO DA BARBEARIA)
 # ==========================================================
 @app.route("/agenda/<empresa_slug>")
 def agenda_dia(empresa_slug):
-    token = request.args.get("token", "").strip()
-    empresa = validar_token_empresa(empresa_slug, token)
-    if not empresa:
-        abort(401, description="Token invalido ou empresa nao encontrada.")
-
-    data_ref = limpar_texto(request.args.get("data", date.today().strftime("%Y-%m-%d")), 10)
-    barbeiro_id = limpar_texto(request.args.get("barbeiro_id", ""), 80)
-    if not validar_data_yyyy_mm_dd(data_ref):
-        data_ref = date.today().strftime("%Y-%m-%d")
-
-    conn = get_conn()
+    """
+    Rota interna da agenda do dia.
+    Autenticada via token da empresa (armazenado no banco).
+    Token vem por query string: ?token=...
+    """
     try:
-        if barbeiro_id:
-            barbeiro_valido = conn.execute(
-                "SELECT id FROM barbeiros WHERE id = ? AND empresa_id = ? AND ativo = 1 LIMIT 1",
-                (barbeiro_id, empresa["id"]),
-            ).fetchone()
-            if not barbeiro_valido:
-                barbeiro_id = ""
-
-        agendamentos = obter_agendamentos_do_dia(conn, empresa["id"], data_ref, barbeiro_id)
-        resumo = gerar_resumo_agendamentos(agendamentos)
-        barbeiros = listar_barbeiros(empresa["id"])
-    finally:
-        conn.close()
-
-    # Agora usa o template externo "agenda_dia.html"
-    return render_template(
-        "agenda_dia.html",
-        empresa=empresa,
-        token=token,
-        data_ref=data_ref,
-        barbeiros=barbeiros,
-        barbeiro_selecionado=barbeiro_id,
-        resumo=resumo,
-        agendamentos=agendamentos
-    )
-
-
+        token = limpar_texto(request.args.get("token", ""), 200)
+ 
+        if not token:
+            return jsonify({"message": "Token nao fornecido."}), 401
+ 
+        empresa = validar_token_empresa(empresa_slug, token)
+        if not empresa:
+            return jsonify({"message": "Token invalido ou empresa nao encontrada."}), 401
+ 
+        data_ref = limpar_texto(
+            request.args.get("data", date.today().strftime("%Y-%m-%d")), 10
+        )
+        if not validar_data_yyyy_mm_dd(data_ref):
+            data_ref = date.today().strftime("%Y-%m-%d")
+ 
+        barbeiro_id = limpar_texto(request.args.get("barbeiro_id", ""), 80)
+ 
+        conn = get_conn()
+        try:
+            # Validar barbeiro_id se fornecido
+            if barbeiro_id:
+                barbeiro_valido = conn.execute(
+                    "SELECT id FROM barbeiros WHERE id = ? AND empresa_id = ? AND ativo = 1 LIMIT 1",
+                    (barbeiro_id, empresa["id"])
+                ).fetchone()
+                if not barbeiro_valido:
+                    barbeiro_id = ""
+ 
+            agendamentos = obter_agendamentos_do_dia(conn, empresa["id"], data_ref, barbeiro_id)
+            resumo = gerar_resumo_agendamentos(agendamentos)
+            barbeiros = listar_barbeiros(empresa["id"])
+        finally:
+            conn.close()
+ 
+        return render_template(
+            "agenda_dia.html",
+            empresa=empresa,
+            token=token,
+            data_ref=data_ref,
+            barbeiros=barbeiros,
+            barbeiro_selecionado=barbeiro_id,
+            resumo=resumo,
+            agendamentos=agendamentos,
+        )
+ 
+    except Exception:
+        # Imprime traceback completo nos logs do Railway
+        traceback.print_exc()
+        return jsonify({"message": "Erro interno no servidor."}), 500
+ 
+ 
 @app.route("/api/agendamentos/<agendamento_id>/status", methods=["POST"])
 def atualizar_status(agendamento_id):
-    token = request.args.get("token") or request.headers.get("X-Auth-Token")
+    token = request.args.get("token") or request.headers.get("X-Auth-Token", "")
+    token = limpar_texto(token, 200)
+ 
     if not token:
         abort(401, description="Token nao fornecido.")
-
+ 
     conn = get_conn()
     try:
         empresa = conn.execute(
             "SELECT id FROM empresas WHERE token = ? AND ativo = 1",
-            (token,),
+            (token,)
         ).fetchone()
         if not empresa:
             abort(401, description="Token invalido.")
-
+ 
         agendamento = conn.execute(
             "SELECT id FROM agendamentos WHERE id = ? AND empresa_id = ?",
-            (agendamento_id, empresa["id"]),
+            (agendamento_id, empresa["id"])
         ).fetchone()
         if not agendamento:
             abort(404, description="Agendamento nao encontrado.")
-
+ 
         data = request.get_json(silent=True) or {}
         novo_status = limpar_texto(data.get("status", ""), 20).lower()
         if novo_status not in STATUS_VALIDOS:
             return jsonify({"error": "Status invalido."}), 400
-
+ 
         agora = now_iso()
         conn.execute(
             "UPDATE agendamentos SET status = ?, atualizado_em = ? WHERE id = ?",
-            (novo_status, agora, agendamento_id),
+            (novo_status, agora, agendamento_id)
         )
         conn.commit()
-
+ 
         return jsonify({"success": True, "status": novo_status}), 200
     finally:
         conn.close()
-
-
+ 
+ 
 @app.route("/exportar-csv")
 def exportar_csv():
-    token = request.args.get("token", "").strip()
+    token = limpar_texto(request.args.get("token", ""), 200)
     empresa_slug = limpar_texto(request.args.get("empresa", ""), 80)
     data_ref = limpar_texto(request.args.get("data", ""), 10)
     barbeiro_id = limpar_texto(request.args.get("barbeiro_id", ""), 80)
-
+ 
     if not token:
         abort(401, description="Token nao fornecido.")
     empresa = validar_token_empresa(empresa_slug, token)
@@ -1026,15 +1048,15 @@ def exportar_csv():
         return jsonify({"message": "Parametro 'empresa' e obrigatorio."}), 400
     if data_ref and not validar_data_yyyy_mm_dd(data_ref):
         return jsonify({"message": "Data invalida."}), 400
-
+ 
     data_exportacao = data_ref or date.today().strftime("%Y-%m-%d")
-
+ 
     conn = get_conn()
     try:
         rows = obter_agendamentos_do_dia(conn, empresa["id"], data_exportacao, barbeiro_id)
     finally:
         conn.close()
-
+ 
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
@@ -1043,30 +1065,31 @@ def exportar_csv():
     ])
     for r in rows:
         writer.writerow([
-            r["data"], r["hora_inicio"], r["hora_fim"], r["cliente_nome"],
-            r["cliente_telefone"], r["cliente_email"], r["servico_nome"],
-            r["barbeiro_nome"], r["preco"], r["status"], r["observacao"],
+            r.get("data"), r.get("hora_inicio"), r.get("hora_fim"),
+            r.get("cliente_nome"), r.get("cliente_telefone"), r.get("cliente_email"),
+            r.get("servico_nome"), r.get("barbeiro_nome"), r.get("preco"),
+            r.get("status"), r.get("observacao"),
         ])
-
+ 
     mem = io.BytesIO()
     mem.write(output.getvalue().encode("utf-8-sig"))
     mem.seek(0)
     output.close()
-
+ 
     nome_arquivo = f"agendamentos_{empresa_slug}_{data_exportacao}.csv"
     return send_file(mem, mimetype="text/csv", as_attachment=True, download_name=nome_arquivo)
-
-
+ 
+ 
 @app.route("/agenda/<empresa_slug>/exportar-csv")
 def exportar_csv_interno(empresa_slug):
-    token = request.args.get("token", "").strip()
+    token = limpar_texto(request.args.get("token", ""), 200)
     if not token:
         abort(401, description="Token nao fornecido.")
-
+ 
     empresa = validar_token_empresa(empresa_slug, token)
     if not empresa:
         abort(401, description="Token invalido.")
-
+ 
     data_ref = limpar_texto(request.args.get("data", ""), 10)
     barbeiro_id = limpar_texto(request.args.get("barbeiro_id", ""), 80)
     args = {
@@ -1076,46 +1099,46 @@ def exportar_csv_interno(empresa_slug):
         "token": token,
     }
     return redirect(url_for("exportar_csv", **args))
-
-
+ 
+ 
 # ==========================================================
 # ERROS
 # ==========================================================
 @app.errorhandler(400)
 def bad_request(err):
     return jsonify({"message": getattr(err, "description", "Requisicao invalida.")}), 400
-
-
+ 
+ 
 @app.errorhandler(401)
 def unauthorized(err):
     return jsonify({"message": getattr(err, "description", "Nao autorizado.")}), 401
-
-
+ 
+ 
 @app.errorhandler(404)
 def not_found(err):
     return jsonify({"message": "Recurso nao encontrado."}), 404
-
-
+ 
+ 
 @app.errorhandler(405)
 def method_not_allowed(err):
     return jsonify({"message": "Metodo nao permitido."}), 405
-
-
+ 
+ 
 @app.errorhandler(413)
 def payload_too_large(err):
     return jsonify({"message": "Payload muito grande."}), 413
-
-
+ 
+ 
 @app.errorhandler(429)
 def too_many_requests(err):
     return jsonify({"message": "Muitas requisicoes. Tente novamente."}), 429
-
-
+ 
+ 
 @app.errorhandler(500)
 def internal_error(err):
     return jsonify({"message": "Erro interno no servidor."}), 500
-
-
+ 
+ 
 # ==========================================================
 # MAIN
 # ==========================================================
