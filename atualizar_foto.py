@@ -1,79 +1,202 @@
+#!/usr/bin/env python3
+
 import os
-import sys
+import re
+import uuid
+import secrets
 import psycopg2
+from datetime import datetime
 
 # ==================== CONEXÃO POSTGRESQL ====================
 def get_db_connection():
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise Exception("❌ Variável de ambiente DATABASE_URL não definida.")
+    # Railway usa 'postgres://', psycopg2 exige 'postgresql://'
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
     return psycopg2.connect(database_url)
 
-# ==================== ATUALIZAÇÃO DE FOTO ====================
-def atualizar_foto():
+# ==================== UTILITÁRIOS ====================
+def slugify(texto: str) -> str:
+    texto = (texto or "").strip().lower()
+    texto = re.sub(r"[^a-z0-9\s-]", "", texto)
+    texto = re.sub(r"[\s_]+", "-", texto)
+    texto = re.sub(r"-+", "-", texto)
+    return texto.strip("-")
+
+def gerar_token_empresa() -> str:
+    return secrets.token_urlsafe(32)
+
+def empty_to_none(valor: str) -> str | None:
+    """Converte string vazia ou apenas espaços para None."""
+    if valor is None:
+        return None
+    stripped = valor.strip()
+    return stripped if stripped else None
+
+# ==================== CADASTRO PRINCIPAL ====================
+def cadastrar():
     conn = None
     try:
         conn = get_db_connection()
         conn.autocommit = False
         cur = conn.cursor()
 
-        slug_empresa = input("Slug da barbearia (ex: barbearia): ").strip()
-        nome_barbeiro = input("Nome do barbeiro: ").strip()
-        nome_arquivo = input("Nome do arquivo da foto (ex: joao.jpeg): ").strip()
+        print("\n=== CADASTRO DE NOVA BARBEARIA (POSTGRESQL) ===\n")
 
-        if not slug_empresa or not nome_barbeiro or not nome_arquivo:
-            print("❌ Todos os campos são obrigatórios.")
+        nome = input("Nome da barbearia: ").strip()
+        slug_digitado = input("Slug (usado na URL, ex: barbearia-ze): ").strip()
+        telefone = input("Telefone: ").strip()
+        email = empty_to_none(input("E-mail: ").strip())
+        endereco = empty_to_none(input("Endereço: ").strip())
+
+        if not nome:
+            print("❌ Nome é obrigatório.")
             return
 
-        # Valida extensão
-        extensoes_permitidas = (".jpg", ".jpeg", ".png", ".webp")
-        if not nome_arquivo.lower().endswith(extensoes_permitidas):
-            print("❌ Arquivo inválido. Use jpg, jpeg, png ou webp.")
+        slug = slugify(slug_digitado if slug_digitado else nome)
+        if not slug:
+            print("❌ Slug inválido.")
             return
 
-        # Verifica existência física do arquivo
-        caminho_fisico = os.path.join("static", "uploads", "barbeiros", nome_arquivo)
-        if not os.path.exists(caminho_fisico):
-            print(f"❌ Arquivo não encontrado em: {caminho_fisico}")
+        # Verifica slug duplicado
+        cur.execute("SELECT id FROM empresas WHERE slug = %s LIMIT 1", (slug,))
+        if cur.fetchone():
+            print(f"❌ Já existe uma barbearia com o slug '{slug}'.")
             return
 
-        caminho_banco = f"/static/uploads/barbeiros/{nome_arquivo}"
+        empresa_id = str(uuid.uuid4())
+        token = gerar_token_empresa()
+        agora = datetime.now().isoformat(timespec="seconds")
 
-        # Busca barbeiro (case insensitive)
+        # 1. Inserir empresa (boolean = True)
         cur.execute("""
-            SELECT b.id, b.nome
-            FROM barbeiros b
-            JOIN empresas e ON b.empresa_id = e.id
-            WHERE LOWER(TRIM(e.slug)) = LOWER(TRIM(%s))
-              AND LOWER(TRIM(b.nome)) = LOWER(TRIM(%s))
-        """, (slug_empresa, nome_barbeiro))
-        barbeiro = cur.fetchone()
+            INSERT INTO empresas (
+                id, nome, slug, telefone, email, endereco, logo_url,
+                ativo, criado_em, atualizado_em, token
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            empresa_id, nome, slug, telefone, email, endereco, None,
+            True, agora, agora, token
+        ))
 
-        if not barbeiro:
-            print("❌ Barbeiro não encontrado para este slug e nome.")
-            return
-
-        # Atualiza foto_url
+        # 2. Configurações padrão (boolean: permite_encaixe=False, envia_whatsapp=True)
         cur.execute("""
-            UPDATE barbeiros
-            SET foto_url = %s
-            WHERE id = %s
-        """, (caminho_banco, barbeiro[0]))
+            INSERT INTO configuracoes_empresa (
+                empresa_id, hora_abertura, hora_fechamento, intervalo_min,
+                antecedencia_max_dias, permite_encaixe, envia_whatsapp,
+                criado_em, atualizado_em
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            empresa_id, "08:00", "20:00", 30, 30, False, True, agora, agora
+        ))
 
+        # 3. Barbeiros
+        while True:
+            try:
+                qtd_barbeiros = int(input("\nQuantos barbeiros? ").strip())
+                if qtd_barbeiros <= 0:
+                    print("Digite um número maior que zero.")
+                    continue
+                break
+            except ValueError:
+                print("Digite um número válido.")
+
+        barbeiros_ids = []
+        for i in range(qtd_barbeiros):
+            nome_b = input(f"Nome do barbeiro {i+1}: ").strip()
+            whats = empty_to_none(input(f"WhatsApp {i+1} (opcional): ").strip())
+            if not nome_b:
+                print("❌ Nome do barbeiro é obrigatório.")
+                return
+
+            barbeiro_id = str(uuid.uuid4())
+            cur.execute("""
+                INSERT INTO barbeiros (
+                    id, empresa_id, nome, whatsapp, email, foto_url, bio,
+                    ativo, criado_em, atualizado_em
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                barbeiro_id, empresa_id, nome_b, whats, None, None, None,
+                True, agora, agora
+            ))
+            barbeiros_ids.append(barbeiro_id)
+
+        # 4. Serviços
+        while True:
+            try:
+                qtd_servicos = int(input("\nQuantos serviços? ").strip())
+                if qtd_servicos <= 0:
+                    print("Digite um número maior que zero.")
+                    continue
+                break
+            except ValueError:
+                print("Digite um número válido.")
+
+        servicos_ids = []
+        for i in range(qtd_servicos):
+            nome_s = input(f"Nome do serviço {i+1}: ").strip()
+            if not nome_s:
+                print("❌ Nome do serviço é obrigatório.")
+                return
+
+            try:
+                preco = float(input(f"Preço {i+1} (ex: 35.00): ").strip())
+                duracao = int(input(f"Duração em minutos {i+1}: ").strip())
+            except ValueError:
+                print("❌ Preço ou duração inválidos.")
+                return
+
+            emoji = empty_to_none(input(f"Emoji {i+1} (opcional, ex: ✂️): ").strip())
+
+            cur.execute("""
+                INSERT INTO servicos (
+                    empresa_id, nome, descricao, preco, duracao_min, emoji,
+                    ativo, criado_em, atualizado_em
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                empresa_id, nome_s, None, preco, duracao, emoji,
+                True, agora, agora
+            ))
+            servico_id = cur.fetchone()[0]
+            servicos_ids.append(servico_id)
+
+        # 5. Vincular todos os barbeiros a todos os serviços
+        for b_id in barbeiros_ids:
+            for s_id in servicos_ids:
+                cur.execute("""
+                    INSERT INTO barbeiro_servicos (barbeiro_id, servico_id, criado_em)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (b_id, s_id, agora))
+
+        # Commit final
         conn.commit()
-        print("\n✅ Foto atualizada com sucesso!")
-        print(f"Barbeiro: {barbeiro[1]}")
-        print(f"Caminho salvo no banco: {caminho_banco}")
+
+        # Links
+        base_url = input("\n🌐 Base URL da aplicação (ex: https://seudominio.com ou deixe em branco para local): ").strip()
+        if not base_url:
+            base_url = "http://127.0.0.1:5000"
+
+        print(f"\n✅ Barbearia '{nome}' cadastrada com sucesso!")
+        print(f"🔗 Slug final: {slug}")
+        print(f"🔐 Token interno: {token}")
+        print(f"🌐 Link público: {base_url}/agendar/{slug}")
+        print(f"📋 Link interno do dono: {base_url}/agenda/{slug}?token={token}\n")
 
     except Exception as e:
         if conn:
             conn.rollback()
-        print(f"❌ Erro ao atualizar foto: {e}")
+        print(f"❌ Erro durante o cadastro: {e}")
     finally:
         if conn:
             conn.close()
 
 if __name__ == "__main__":
-    atualizar_foto()
+    cadastrar()
