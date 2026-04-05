@@ -694,7 +694,7 @@
 </head>
 <body>
 
-  {% set logo_padrao = "https://via.placeholder.com/150?text=Logo" %}
+  {% set logo_padrao = url_for('static', filename='uploads/empresas/gtech.jpeg') %}
   {% set logo_url = empresa["logo_url"] if empresa.get("logo_url") else logo_padrao %}
 
   <header class="hero">
