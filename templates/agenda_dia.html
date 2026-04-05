@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>{{ empresa.nome }} • Agenda do Dia</title>
+  <title>{{ empresa["nome"] }} • Agenda do Dia</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
@@ -60,7 +60,6 @@
       min-height: 100vh;
     }
 
-    /* ─── HEADER HERO ─── */
     .hero {
       background: linear-gradient(135deg, #0a1628 0%, #0f2340 45%, #0f4f48 100%);
       padding: 28px 24px 26px;
@@ -143,7 +142,6 @@
       white-space: nowrap;
     }
 
-    /* ─── PAGE CONTENT ─── */
     .page {
       max-width: 1200px;
       margin: 0 auto;
@@ -153,7 +151,6 @@
       gap: 18px;
     }
 
-    /* ─── PANEL BASE ─── */
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
@@ -161,7 +158,6 @@
       box-shadow: var(--shadow-sm);
     }
 
-    /* ─── FILTROS ─── */
     .filters {
       padding: 20px;
     }
@@ -259,7 +255,6 @@
       color: var(--teal);
     }
 
-    /* ─── STATS ─── */
     .stats {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -307,7 +302,6 @@
       color: var(--muted);
     }
 
-    /* ─── AGENDA TABLE ─── */
     .agenda-panel {
       overflow: hidden;
     }
@@ -405,7 +399,6 @@
     .barber-name  { font-weight: 600; }
     .obs-text { color: var(--muted); font-size: 0.84rem; max-width: 220px; }
 
-    /* ─── STATUS BADGE ─── */
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -425,7 +418,6 @@
     .status-cancelado,
     .status-faltou    { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border);   }
 
-    /* ─── BOTÃO TROCAR STATUS ─── */
     .btn-status {
       margin-top: 8px;
       display: block;
@@ -447,7 +439,6 @@
       background: var(--teal-soft);
     }
 
-    /* ─── EMPTY STATE ─── */
     .empty {
       padding: 52px 24px;
       text-align: center;
@@ -467,7 +458,6 @@
 
     .empty span { color: var(--muted); font-size: 0.9rem; }
 
-    /* ─── MOBILE CARDS ─── */
     .mobile-list {
       display: none;
       flex-direction: column;
@@ -530,7 +520,6 @@
       flex-wrap: wrap;
     }
 
-    /* ─── FOOTER ─── */
     .footer-note {
       text-align: center;
       color: var(--muted);
@@ -538,7 +527,6 @@
       padding-top: 4px;
     }
 
-    /* ─── MODAL DE TROCA DE STATUS ─── */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -645,7 +633,6 @@
 
     .toast.show { transform: translateX(-50%) translateY(0); }
 
-    /* ─── RESPONSIVO ─── */
     @media (max-width: 1024px) {
       .stats {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -654,9 +641,7 @@
 
     @media (max-width: 768px) {
       .hero { padding: 20px 16px 22px; }
-
       .hero-chips { display: none; }
-
       .hero-text h1 { font-size: 1.45rem; }
 
       .filters form {
@@ -669,7 +654,6 @@
         width: 100%;
       }
 
-      /* Input date e select ocupam largura total no mobile */
       .field input[type="date"],
       .field select {
         height: 52px;
@@ -703,41 +687,36 @@
       }
 
       .mc-grid { grid-template-columns: 1fr; }
-
       .status-options { grid-template-columns: 1fr 1fr; }
-
       .modal { padding: 22px 18px 18px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ══════════════════════ HERO ══════════════════════ -->
-  {% set logo_padrao = url_for('static', filename='uploads/empresas/gtech.jpeg') %}
-  {% set logo_url = empresa.logo_url if empresa.logo_url else logo_padrao %}
+  {% set logo_padrao = "https://via.placeholder.com/150?text=Logo" %}
+  {% set logo_url = empresa["logo_url"] if empresa.get("logo_url") else logo_padrao %}
 
   <header class="hero">
     <div class="hero-inner">
       <div class="logo-box">
-        <img src="{{ logo_url }}" alt="Logo {{ empresa.nome }}"
+        <img src="{{ logo_url }}" alt="Logo {{ empresa['nome'] }}"
              onerror="this.onerror=null;this.src='{{ logo_padrao }}';">
       </div>
       <div class="hero-text">
         <h1>Agenda do Dia</h1>
-        <p><strong style="color:#fff;">{{ empresa.nome }}</strong> &nbsp;·&nbsp; painel interno de agendamentos</p>
+        <p><strong style="color:#fff;">{{ empresa["nome"] }}</strong> &nbsp;·&nbsp; painel interno de agendamentos</p>
       </div>
       <div class="hero-chips">
         <span class="chip">🔐 Acesso interno</span>
         <span class="chip">📅 {{ data_ref }}</span>
-        <span class="chip">🏪 {{ empresa.slug }}</span>
+        <span class="chip">🏪 {{ empresa["slug"] }}</span>
       </div>
     </div>
   </header>
 
-  <!-- ══════════════════════ PAGE ══════════════════════ -->
   <div class="page">
 
-    <!-- FILTROS -->
     <section class="panel filters">
       <form method="get">
         <input type="hidden" name="token" value="{{ token }}">
@@ -752,9 +731,9 @@
           <select id="barbeiro_id" name="barbeiro_id">
             <option value="">Todos os barbeiros</option>
             {% for barbeiro in barbeiros %}
-              <option value="{{ barbeiro.id }}"
-                {% if barbeiro.id == barbeiro_selecionado %}selected{% endif %}>
-                {{ barbeiro.nome }}
+              <option value="{{ barbeiro['id'] }}"
+                {% if barbeiro['id'] == barbeiro_selecionado %}selected{% endif %}>
+                {{ barbeiro["nome"] }}
               </option>
             {% endfor %}
           </select>
@@ -762,47 +741,45 @@
 
         <div class="filter-actions">
           <button type="submit" class="btn btn-primary">Atualizar agenda</button>
-          <a href="{{ url_for('exportar_csv_interno', empresa_slug=empresa.slug, token=token, data=data_ref, barbeiro_id=barbeiro_selecionado) }}"
+          <a href="{{ url_for('exportar_csv_interno', empresa_slug=empresa['slug'], token=token, data=data_ref, barbeiro_id=barbeiro_selecionado) }}"
              class="btn btn-ghost">Exportar CSV</a>
         </div>
       </form>
     </section>
 
-    <!-- STATS -->
     <section class="stats">
       <article class="panel stat-card">
         <div class="stat-label">Total do dia</div>
-        <div class="stat-value">{{ resumo.total }}</div>
+        <div class="stat-value">{{ resumo["total"] }}</div>
         <div class="stat-sub">agendamentos</div>
       </article>
       <article class="panel stat-card">
         <div class="stat-label">Marcados</div>
-        <div class="stat-value">{{ resumo.marcado }}</div>
+        <div class="stat-value">{{ resumo["marcado"] }}</div>
         <div class="stat-sub">pendentes</div>
       </article>
       <article class="panel stat-card">
         <div class="stat-label">Confirmados</div>
-        <div class="stat-value">{{ resumo.confirmado }}</div>
+        <div class="stat-value">{{ resumo["confirmado"] }}</div>
         <div class="stat-sub">confirmados</div>
       </article>
       <article class="panel stat-card">
         <div class="stat-label">Concluídos</div>
-        <div class="stat-value">{{ resumo.concluido }}</div>
+        <div class="stat-value">{{ resumo["concluido"] }}</div>
         <div class="stat-sub">finalizados</div>
       </article>
       <article class="panel stat-card">
         <div class="stat-label">Cancelados/Faltas</div>
-        <div class="stat-value">{{ resumo.cancelado + resumo.faltou }}</div>
+        <div class="stat-value">{{ resumo["cancelado"] + resumo["faltou"] }}</div>
         <div class="stat-sub">requerem atenção</div>
       </article>
     </section>
 
-    <!-- AGENDA -->
     <section class="panel agenda-panel">
       <div class="agenda-head">
         <div class="agenda-head-title">
           <strong>Lista de agendamentos</strong>
-          <small>Agenda da {{ empresa.nome }} • {{ data_ref }}</small>
+          <small>Agenda da {{ empresa["nome"] }} • {{ data_ref }}</small>
         </div>
         <span class="agenda-head-meta">
           {% if barbeiro_selecionado %}1 profissional selecionado{% else %}todos os profissionais{% endif %}
@@ -811,7 +788,6 @@
 
       {% if agendamentos %}
 
-        <!-- TABELA (desktop) -->
         <div class="table-scroll">
           <table>
             <thead>
@@ -827,21 +803,21 @@
             </thead>
             <tbody>
               {% for item in agendamentos %}
-                {% set sc = 'status-' + (item.status or 'marcado')|lower %}
-                {% set tel = (item.cliente_telefone or '')|replace(' ','')|replace('(','')|replace(')','')|replace('-','')|replace('+','') %}
-                <tr>
+                {% set sc = 'status-' + (item["status"] or 'marcado')|lower %}
+                {% set tel = (item["cliente_telefone"] or '')|replace(' ','')|replace('(','')|replace(')','')|replace('-','')|replace('+','') %}
+                <tr data-agendamento-id="{{ item['id'] }}">
                   <td>
-                    <span class="time-cell">{{ item.hora_inicio }} - {{ item.hora_fim }}</span>
+                    <span class="time-cell">{{ item["hora_inicio"] }} - {{ item["hora_fim"] }}</span>
                   </td>
                   <td>
-                    <span class="client-name">{{ item.cliente_nome }}</span>
-                    {% if item.cliente_email %}
-                      <span class="client-email">{{ item.cliente_email }}</span>
+                    <span class="client-name">{{ item["cliente_nome"] }}</span>
+                    {% if item["cliente_email"] %}
+                      <span class="client-email">{{ item["cliente_email"] }}</span>
                     {% endif %}
                   </td>
                   <td>
-                    {% if item.cliente_telefone %}
-                      <a class="phone-link" href="tel:{{ tel }}">{{ item.cliente_telefone }}</a>
+                    {% if item["cliente_telefone"] %}
+                      <a class="phone-link" href="tel:{{ tel }}">{{ item["cliente_telefone"] }}</a>
                       <a class="wa-link" href="https://wa.me/55{{ tel }}" target="_blank" rel="noopener">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.558 4.119 1.532 5.847L.046 23.825a.5.5 0 0 0 .626.617l6.086-1.543A11.944 11.944 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.812 9.812 0 0 1-5.013-1.373l-.358-.214-3.714.94.994-3.618-.234-.374A9.818 9.818 0 0 1 2.182 12c0-5.42 4.398-9.818 9.818-9.818 5.42 0 9.818 4.398 9.818 9.818 0 5.42-4.398 9.818-9.818 9.818z"/></svg>
                         WhatsApp
@@ -850,17 +826,22 @@
                       <span style="color:var(--muted);font-size:.82rem;">Não informado</span>
                     {% endif %}
                   </td>
-                  <td><span class="service-name">{{ item.servico_nome or '—' }}</span></td>
-                  <td><span class="barber-name">{{ item.barbeiro_nome or '—' }}</span></td>
+                  <td><span class="service-name">{{ item["servico_nome"] or '—' }}</span></td>
+                  <td><span class="barber-name">{{ item["barbeiro_nome"] or '—' }}</span></td>
                   <td>
-                    <span class="status-badge {{ sc }}">{{ item.status or 'marcado' }}</span>
-                    <button class="btn-status"
-                            onclick="openModal('{{ item.id }}', '{{ item.cliente_nome }}', '{{ (item.status or 'marcado')|lower }}', '{{ token }}')">
+                    <span class="status-badge {{ sc }}" data-role="status-badge">{{ item["status"] or 'marcado' }}</span>
+                    <button
+                      class="btn-status"
+                      type="button"
+                      data-agendamento-id="{{ item['id'] }}"
+                      data-cliente-nome="{{ item['cliente_nome'] }}"
+                      data-status-atual="{{ (item['status'] or 'marcado')|lower }}"
+                      onclick='openModal({{ item["id"]|tojson }}, {{ item["cliente_nome"]|tojson }}, {{ ((item["status"] or "marcado")|lower)|tojson }}, {{ token|tojson }})'>
                       Trocar status
                     </button>
                   </td>
                   <td>
-                    <span class="obs-text">{{ item.observacao or 'Sem observação' }}</span>
+                    <span class="obs-text">{{ item["observacao"] or 'Sem observação' }}</span>
                   </td>
                 </tr>
               {% endfor %}
@@ -868,40 +849,39 @@
           </table>
         </div>
 
-        <!-- CARDS (mobile) -->
         <div class="mobile-list">
           {% for item in agendamentos %}
-            {% set sc = 'status-' + (item.status or 'marcado')|lower %}
-            {% set tel = (item.cliente_telefone or '')|replace(' ','')|replace('(','')|replace(')','')|replace('-','')|replace('+','') %}
-            <article class="mobile-card">
+            {% set sc = 'status-' + (item["status"] or 'marcado')|lower %}
+            {% set tel = (item["cliente_telefone"] or '')|replace(' ','')|replace('(','')|replace(')','')|replace('-','')|replace('+','') %}
+            <article class="mobile-card" data-agendamento-id="{{ item['id'] }}">
               <div class="mc-top">
                 <div>
-                  <div class="mc-time">{{ item.hora_inicio }} - {{ item.hora_fim }}</div>
-                  <div class="mc-name">{{ item.cliente_nome }}</div>
+                  <div class="mc-time">{{ item["hora_inicio"] }} - {{ item["hora_fim"] }}</div>
+                  <div class="mc-name">{{ item["cliente_nome"] }}</div>
                 </div>
-                <span class="status-badge {{ sc }}">{{ item.status or 'marcado' }}</span>
+                <span class="status-badge {{ sc }}" data-role="status-badge">{{ item["status"] or 'marcado' }}</span>
               </div>
 
               <div class="mc-grid">
                 <div>
                   <div class="mc-field-label">Serviço</div>
-                  <div class="mc-field-val">{{ item.servico_nome or '—' }}</div>
+                  <div class="mc-field-val">{{ item["servico_nome"] or '—' }}</div>
                 </div>
                 <div>
                   <div class="mc-field-label">Profissional</div>
-                  <div class="mc-field-val">{{ item.barbeiro_nome or '—' }}</div>
+                  <div class="mc-field-val">{{ item["barbeiro_nome"] or '—' }}</div>
                 </div>
                 <div>
                   <div class="mc-field-label">Telefone</div>
-                  {% if item.cliente_telefone %}
-                    <a class="phone-link" href="tel:{{ tel }}">{{ item.cliente_telefone }}</a>
+                  {% if item["cliente_telefone"] %}
+                    <a class="phone-link" href="tel:{{ tel }}">{{ item["cliente_telefone"] }}</a>
                   {% else %}
                     <div class="mc-field-val" style="color:var(--muted)">Não informado</div>
                   {% endif %}
                 </div>
                 <div>
                   <div class="mc-field-label">WhatsApp</div>
-                  {% if item.cliente_telefone %}
+                  {% if item["cliente_telefone"] %}
                     <a class="wa-link" style="margin-top:0" href="https://wa.me/55{{ tel }}" target="_blank" rel="noopener">Abrir conversa</a>
                   {% else %}
                     <div class="mc-field-val" style="color:var(--muted)">—</div>
@@ -909,13 +889,19 @@
                 </div>
                 <div style="grid-column: 1 / -1;">
                   <div class="mc-field-label">Observação</div>
-                  <div class="mc-field-val" style="font-weight:400;color:var(--muted)">{{ item.observacao or 'Sem observação' }}</div>
+                  <div class="mc-field-val" style="font-weight:400;color:var(--muted)">{{ item["observacao"] or 'Sem observação' }}</div>
                 </div>
               </div>
 
               <div class="mc-status-wrap">
-                <button class="btn btn-ghost" style="height:38px;font-size:.82rem;padding:0 14px;"
-                        onclick="openModal('{{ item.id }}', '{{ item.cliente_nome }}', '{{ (item.status or 'marcado')|lower }}', '{{ token }}')">
+                <button
+                  class="btn btn-ghost"
+                  style="height:38px;font-size:.82rem;padding:0 14px;"
+                  type="button"
+                  data-agendamento-id="{{ item['id'] }}"
+                  data-cliente-nome="{{ item['cliente_nome'] }}"
+                  data-status-atual="{{ (item['status'] or 'marcado')|lower }}"
+                  onclick='openModal({{ item["id"]|tojson }}, {{ item["cliente_nome"]|tojson }}, {{ ((item["status"] or "marcado")|lower)|tojson }}, {{ token|tojson }})'>
                   ✏️ Trocar status
                 </button>
               </div>
@@ -935,58 +921,55 @@
     <p class="footer-note">Painel interno com token único por barbearia • uso diário no celular e no computador</p>
   </div>
 
-  <!-- ══════════════════════ MODAL STATUS ══════════════════════ -->
   <div class="modal-overlay" id="statusModal" onclick="handleOverlayClick(event)">
     <div class="modal">
       <h2 class="modal-title">Atualizar status</h2>
       <p class="modal-sub" id="modalSub">Cliente: <strong id="modalClienteName"></strong></p>
 
       <div class="status-options">
-        <button class="status-opt" data-status="marcado" onclick="selectStatus(this)">
+        <button class="status-opt" type="button" data-status="marcado" onclick="selectStatus(this)">
           <span class="status-badge status-marcado opt-badge">marcado</span>
           <span class="opt-label">Pendente de confirmação</span>
         </button>
-        <button class="status-opt" data-status="confirmado" onclick="selectStatus(this)">
+        <button class="status-opt" type="button" data-status="confirmado" onclick="selectStatus(this)">
           <span class="status-badge status-confirmado opt-badge">confirmado</span>
           <span class="opt-label">Cliente confirmou presença</span>
         </button>
-        <button class="status-opt" data-status="concluido" onclick="selectStatus(this)">
+        <button class="status-opt" type="button" data-status="concluido" onclick="selectStatus(this)">
           <span class="status-badge status-concluido opt-badge">concluído</span>
           <span class="opt-label">Serviço finalizado</span>
         </button>
-        <button class="status-opt" data-status="cancelado" onclick="selectStatus(this)">
+        <button class="status-opt" type="button" data-status="cancelado" onclick="selectStatus(this)">
           <span class="status-badge status-cancelado opt-badge">cancelado</span>
           <span class="opt-label">Agendamento cancelado</span>
         </button>
-        <button class="status-opt" data-status="faltou" onclick="selectStatus(this)">
+        <button class="status-opt" type="button" data-status="faltou" onclick="selectStatus(this)">
           <span class="status-badge status-faltou opt-badge">faltou</span>
           <span class="opt-label">Cliente não compareceu</span>
         </button>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary btn-sm" id="confirmBtn" onclick="confirmStatus()">Salvar</button>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" type="button" id="confirmBtn" onclick="confirmStatus()">Salvar</button>
       </div>
     </div>
   </div>
 
-  <!-- TOAST -->
   <div class="toast" id="toast"></div>
 
   <script>
-    let _agendamentoId  = null;
+    let _agendamentoId = null;
     let _selectedStatus = null;
-    let _token          = null;
+    let _token = null;
 
     function openModal(id, nome, statusAtual, token) {
-      _agendamentoId  = id;
-      _token          = token;
+      _agendamentoId = id;
+      _token = token;
       _selectedStatus = statusAtual;
 
       document.getElementById('modalClienteName').textContent = nome;
 
-      // Marcar a opção atual
       document.querySelectorAll('.status-opt').forEach(btn => {
         btn.classList.toggle('selected', btn.dataset.status === statusAtual);
       });
@@ -996,7 +979,9 @@
 
     function closeModal() {
       document.getElementById('statusModal').classList.remove('open');
-      _agendamentoId = _selectedStatus = _token = null;
+      _agendamentoId = null;
+      _selectedStatus = null;
+      _token = null;
     }
 
     function handleOverlayClick(e) {
@@ -1018,7 +1003,7 @@
     }
 
     async function confirmStatus() {
-      if (!_agendamentoId || !_selectedStatus) return;
+      if (!_agendamentoId || !_selectedStatus || !_token) return;
 
       const btn = document.getElementById('confirmBtn');
       btn.disabled = true;
@@ -1026,7 +1011,7 @@
 
       try {
         const res = await fetch(
-          `/api/agendamentos/${_agendamentoId}/status?token=${encodeURIComponent(_token)}`,
+          `/api/agendamentos/${encodeURIComponent(_agendamentoId)}/status?token=${encodeURIComponent(_token)}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1038,9 +1023,8 @@
 
         if (res.ok && data.success) {
           showToast('✅ Status atualizado com sucesso!', true);
-          closeModal();
-          // Atualiza o badge e o botão na linha da tabela sem reload
           updateBadgesOnPage(_agendamentoId, _selectedStatus);
+          closeModal();
         } else {
           showToast('❌ ' + (data.error || data.message || 'Erro ao salvar.'), false);
         }
@@ -1053,31 +1037,26 @@
     }
 
     function updateBadgesOnPage(id, novoStatus) {
-      // Atualiza todos os elementos que referenciam esse agendamento
-      // Funciona buscando botões com o onclick que contém o id
-      document.querySelectorAll('.btn-status, .btn').forEach(btn => {
-        const attr = btn.getAttribute('onclick') || '';
-        if (attr.includes(id)) {
-          // Atualiza o badge mais próximo
-          const parent = btn.closest('td, .mc-status-wrap, .mc-top');
-          if (parent) {
-            const badge = parent.querySelector('.status-badge')
-                       || btn.closest('tr')?.querySelector('.status-badge')
-                       || btn.closest('.mobile-card')?.querySelector('.status-badge');
-            if (badge) {
-              badge.className = `status-badge status-${novoStatus}`;
-              badge.textContent = novoStatus;
-            }
-          }
-          // Atualiza o onclick para refletir o novo status atual
-          btn.setAttribute('onclick',
-            attr.replace(/'[a-z]+'(?=,\s*'{{ token }}')/, `'${novoStatus}'`)
-          );
+      const containers = document.querySelectorAll(`[data-agendamento-id="${CSS.escape(String(id))}"]`);
+
+      containers.forEach(container => {
+        const badge = container.querySelector('[data-role="status-badge"]');
+        if (badge) {
+          badge.className = `status-badge status-${novoStatus}`;
+          badge.textContent = novoStatus;
         }
+
+        const actionButtons = container.querySelectorAll('[data-status-atual]');
+        actionButtons.forEach(btn => {
+          btn.dataset.statusAtual = novoStatus;
+          btn.setAttribute(
+            'onclick',
+            `openModal(${JSON.stringify(String(id))}, ${JSON.stringify(btn.dataset.clienteNome || '')}, ${JSON.stringify(novoStatus)}, ${JSON.stringify(_token)})`
+          );
+        });
       });
     }
 
-    // Fechar modal com ESC
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closeModal();
     });
